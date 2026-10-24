@@ -3,17 +3,36 @@ import { readFileSync } from 'node:fs';
 import { createServer as criarHttp } from 'node:http';
 import { createServer } from 'node:https';
 // ADN simulado para o teste de ponta a ponta: HTTPS que exige certificado de cliente da AC de teste
-// e serve uma fila fixa de 3 documentos fictícios (2 NFS-e e 1 evento). Só usa módulos do Node.
+// e serve uma fila fixa de 4 documentos fictícios (3 NFS-e e 1 evento de cancelamento). Só usa módulos do Node.
 import process from 'node:process';
 import { gzipSync } from 'node:zlib';
 
 const pasta = process.env.CERTS ?? '/certs';
 const porta = Number(process.env.PORTA ?? 8443);
 
+/** Chave de acesso fictícia de 50 dígitos (a mesma no Id do XML e no ChaveAcesso do lote, como no ADN). */
+export const chave = (numero) => `4314902220123456700018900000000000${String(numero).padStart(4, '0')}26090000000001`;
+
+/** Evento no leiaute nacional (Anexo II), dados inventados. */
+export function evento(chaveNfse, codigo = '101101') {
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<evento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">
+  <infEvento Id="EVT${chaveNfse}${codigo}001">
+    <verAplic>ADN_1.0</verAplic><ambGer>2</ambGer><nSeqEvento>1</nSeqEvento>
+    <dhProc>2026-09-23T09:00:05-03:00</dhProc><nDFe>77</nDFe>
+    <pedRegEvento versao="1.00"><infPedReg Id="PRE${chaveNfse}${codigo}">
+      <tpAmb>1</tpAmb><dhEvento>2026-09-23T09:00:00-03:00</dhEvento><CNPJAutor>01234567000189</CNPJAutor>
+      <chNFSe>${chaveNfse}</chNFSe><nPedRegEvento>1</nPedRegEvento>
+      <e${codigo}><xDesc>Cancelamento de NFS-e</xDesc><cMotivo>1</cMotivo><xMotivo>Erro na emissão</xMotivo></e${codigo}>
+    </infPedReg></pedRegEvento>
+  </infEvento>
+</evento>`;
+}
+
 function nota(numero, valor, cnpjTomador, versao = '1.00') {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="${versao}">
-  <infNFSe Id="NFS4314902220123456700018900000000000${String(numero).padStart(4, '0')}26090000000001">
+  <infNFSe Id="NFS${chave(numero)}">
     <xLocPrestacao>Porto Alegre</xLocPrestacao>
     <nNFSe>${numero}</nNFSe>
     <cStat>100</cStat>
@@ -32,11 +51,11 @@ function nota(numero, valor, cnpjTomador, versao = '1.00') {
 
 const gz = (xml) => gzipSync(Buffer.from(xml)).toString('base64');
 const fila = [
-	{ NSU: 1, ChaveAcesso: 'chave-1', TipoDocumento: 'NFSE', ArquivoXml: gz(nota(1, '450.00', '12345678000195')), DataHoraGeracao: '2026-09-21T10:16:00-03:00' },
-	{ NSU: 2, ChaveAcesso: 'chave-2', TipoDocumento: 'NFSE', ArquivoXml: gz(nota(2, '1137.79', '12345678000195')), DataHoraGeracao: '2026-09-22T09:00:00-03:00' },
-	{ NSU: 3, ChaveAcesso: 'chave-1', TipoDocumento: 'EVENTO', TipoEvento: 'CANCELAMENTO', ArquivoXml: gz('<evento>fictício</evento>'), DataHoraGeracao: '2026-09-23T09:00:00-03:00' },
+	{ NSU: 1, ChaveAcesso: chave(1), TipoDocumento: 'NFSE', ArquivoXml: gz(nota(1, '450.00', '12345678000195')), DataHoraGeracao: '2026-09-21T10:16:00-03:00' },
+	{ NSU: 2, ChaveAcesso: chave(2), TipoDocumento: 'NFSE', ArquivoXml: gz(nota(2, '1137.79', '12345678000195')), DataHoraGeracao: '2026-09-22T09:00:00-03:00' },
+	{ NSU: 3, ChaveAcesso: chave(1), TipoDocumento: 'EVENTO', TipoEvento: 'CANCELAMENTO', ArquivoXml: gz(evento(chave(1))), DataHoraGeracao: '2026-09-23T09:00:00-03:00' },
 	// Leiaute que esta versão do pacote ainda não conhece: deve virar divergência (e relato, com consentimento).
-	{ NSU: 4, ChaveAcesso: 'chave-4', TipoDocumento: 'NFSE', ArquivoXml: gz(nota(4, '99.90', '12345678000195', '1.02')), DataHoraGeracao: '2026-09-24T09:00:00-03:00' },
+	{ NSU: 4, ChaveAcesso: chave(4), TipoDocumento: 'NFSE', ArquivoXml: gz(nota(4, '99.90', '12345678000195', '1.02')), DataHoraGeracao: '2026-09-24T09:00:00-03:00' },
 ];
 
 const servidor = createServer(

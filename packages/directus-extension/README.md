@@ -93,6 +93,14 @@ Envie o novo `.pfx` pelo módulo; não é preciso reiniciar. A `situacao` da emp
 últimos 30 dias e `certificado_vencido` depois (a sincronização é suspensa). Para receber aviso, crie um Flow disparado
 na atualização de `nfse_empresas`.
 
+## Notas e eventos
+
+- **Nfse Documentos:** uma linha por NFS-e, com o **estado** calculado pelos eventos (`ativa`, `cancelada`,
+  `substituida` ou `bloqueada`) e a lista dos eventos da nota.
+- **Nfse Eventos:** cancelamentos, substituições, manifestações e bloqueios (Anexo II do leiaute), ligados à nota pela
+  chave de acesso. Um evento que chega antes da nota fica com `nota` vazia e é ligado assim que ela chegar.
+- Para conciliar (cartão, contas a pagar), filtre `estado = ativa`: nota cancelada não é serviço prestado.
+
 ## Mudanças do ADN
 
 A legislação e o ADN mudam (versão do leiaute, campos, rotas). A extensão confere cada resposta contra o que sabe ler e,

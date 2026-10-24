@@ -1,6 +1,7 @@
 import type { Buffer } from 'node:buffer';
 import type { Ambiente, ItemDfe } from './adn.js';
 import type { Divergencia } from './contrato-adn.js';
+import type { ResumoEvento } from './eventos.js';
 import type { Papel, ResumoNfse } from './xml.js';
 
 /**
@@ -40,8 +41,10 @@ export interface ProvedorDeChave {
 export interface DocumentoRecebido {
 	item: ItemDfe;
 	xml: string;
-	/** null para eventos ou quando o XML não pôde ser lido. */
+	/** NFS-e lida (null para eventos ou quando o XML não pôde ser lido). */
 	nota: ResumoNfse | null;
+	/** Evento lido (null para NFS-e ou quando o XML não pôde ser lido). */
+	evento: ResumoEvento | null;
 	papel: Papel | null;
 	/** Diferenças em relação ao contrato do ADN que este documento revelou. */
 	divergencias: Divergencia[];

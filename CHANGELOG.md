@@ -8,6 +8,24 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Eventos das NFS-e em coleção própria (`nfse_eventos`), filha das notas:** código oficial (Anexo II), descrição,
+  motivo, datas, autor, nota substituta e o XML. O vínculo com a nota é pela chave de acesso, nos dois sentidos (o
+  evento pode chegar antes da nota), e a nota mostra os seus eventos (O2M).
+- **Estado da nota** (`nfse_documentos.estado`): `ativa`, `cancelada`, `substituida` ou `bloqueada`, calculado pelos
+  eventos (cancelamento, inclusive por substituição, deferido em análise fiscal ou de ofício; bloqueio e desbloqueio).
+- `lerEvento`, `TIPOS_EVENTO` e `estadoDaNota` no núcleo; tipo de evento fora da lista oficial vira a divergência
+  `tipo_evento_desconhecido` (o relé passa a aceitá-la).
+
+### Alterado
+
+- **Os eventos saem de `nfse_documentos`:** quem consultava eventos lá passa a encontrá-los em `nfse_eventos`. A
+  migração é automática na inicialização da 0.4.0 (move os eventos já gravados e marca as notas), sem sincronizar de
+  novo.
+- O filtro de dados sensíveis do relato passa a cortar sequências de 7 ou mais dígitos (antes 6), para preservar os
+  códigos oficiais de 6 dígitos, como o do evento. CPF, CNPJ e chave de acesso continuam bloqueados.
+
 ## [0.3.0] - 2026-10-24
 
 ### Adicionado

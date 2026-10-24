@@ -4,6 +4,7 @@ export const TIPOS = [
 	'leiaute_desconhecido',
 	'status_desconhecido',
 	'tipo_documento_desconhecido',
+	'tipo_evento_desconhecido',
 	'campo_ausente',
 	'campo_essencial_vazio',
 	'xml_ilegivel',
@@ -33,8 +34,9 @@ export async function validarRelato(corpo: unknown): Promise<{ relato: Relato } 
 
 	if (!(TIPOS as readonly string[]).includes(texto('tipo'))) erros.push('tipo inválido');
 	if (!DETALHE.test(texto('detalhe'))) erros.push('detalhe inválido');
-	// Sequências longas de dígitos podem ser CNPJ, CPF, chave de acesso ou valores: nunca entram.
-	if (/\d{6,}/.test(texto('detalhe'))) erros.push('detalhe com dados numéricos');
+	// Sequências de 7 ou mais dígitos podem ser CPF, CNPJ ou chave de acesso: nunca entram
+	// (códigos oficiais de 6 dígitos, como o do evento, passam).
+	if (/\d{7,}/.test(texto('detalhe'))) erros.push('detalhe com dados numéricos');
 	if (!VERSAO.test(texto('versaoPacote'))) erros.push('versaoPacote inválida');
 	if (r.versaoDirectus !== undefined && !VERSAO.test(texto('versaoDirectus'))) erros.push('versaoDirectus inválida');
 	if (!['producao', 'producao_restrita'].includes(texto('ambiente'))) erros.push('ambiente inválido');

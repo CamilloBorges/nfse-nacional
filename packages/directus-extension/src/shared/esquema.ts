@@ -5,6 +5,7 @@ export const EMPRESAS = 'nfse_empresas';
 export const DOCUMENTOS = 'nfse_documentos';
 export const CONFIGURACOES = 'nfse_configuracoes';
 export const DIVERGENCIAS = 'nfse_divergencias';
+export const EVENTOS = 'nfse_eventos';
 
 const id = {
 	field: 'id',
@@ -57,16 +58,44 @@ const camposEmpresas = [
 	},
 ];
 
+/** Estado da nota, derivado dos eventos (cancelamento, substituição, bloqueio). */
+const CAMPO_ESTADO = {
+	field: 'estado',
+	type: 'string',
+	meta: somenteLeitura({
+		width: 'half',
+		note: 'Calculado pelos eventos: ativa, cancelada, substituida ou bloqueada.',
+		display: 'labels',
+		display_options: {
+			choices: [
+				{ text: 'Ativa', value: 'ativa', foreground: 'var(--theme--success)' },
+				{ text: 'Cancelada', value: 'cancelada', foreground: 'var(--theme--danger)' },
+				{ text: 'Substituída', value: 'substituida', foreground: 'var(--theme--warning)' },
+				{ text: 'Bloqueada', value: 'bloqueada', foreground: 'var(--theme--warning)' },
+			],
+		},
+	}),
+	schema: { default_value: 'ativa', is_indexed: true },
+};
+
+/** Lista dos eventos dentro da nota (lado "um" da relação nfse_eventos.nota). */
+const CAMPO_EVENTOS = {
+	field: 'eventos',
+	type: 'alias',
+	meta: { special: ['o2m'], interface: 'list-o2m', readonly: true, options: { template: '{{data_evento}} · {{descricao}}' } },
+};
+
 const camposDocumentos = [
 	id,
 	{ field: 'empresa', type: 'integer', meta: { interface: 'select-dropdown-m2o', special: ['m2o'], width: 'half', readonly: true, display: 'related-values', display_options: { template: '{{nome}}' } } },
 	{ field: 'nsu', type: 'bigInteger', meta: somenteLeitura({ width: 'half' }), schema: { is_indexed: true } },
-	{ field: 'tipo_documento', type: 'string', meta: somenteLeitura({ width: 'half', note: 'NFSE ou EVENTO.' }) },
-	{ field: 'tipo_evento', type: 'string', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'tipo_documento', type: 'string', meta: somenteLeitura({ width: 'half', hidden: true, note: 'Sempre NFSE (os eventos ficam em nfse_eventos desde a 0.4.0).' }) },
+	{ field: 'tipo_evento', type: 'string', meta: somenteLeitura({ width: 'half', hidden: true }) },
 	{ field: 'chave_acesso', type: 'string', meta: somenteLeitura(), schema: { max_length: 60, is_indexed: true } },
 	{ field: 'papel', type: 'string', meta: somenteLeitura({ width: 'half', note: 'Papel da empresa na nota: tomador, emitente ou intermediario.' }) },
 	{ field: 'numero', type: 'string', meta: somenteLeitura({ width: 'half' }) },
 	{ field: 'situacao', type: 'string', meta: somenteLeitura({ width: 'half', note: 'cStat da nota.' }) },
+	CAMPO_ESTADO,
 	{ field: 'emissao', type: 'timestamp', meta: somenteLeitura({ width: 'half' }) },
 	{ field: 'competencia', type: 'date', meta: somenteLeitura({ width: 'half' }) },
 	{ field: 'valor_servico', type: 'decimal', meta: somenteLeitura({ width: 'half' }), schema: { numeric_precision: 15, numeric_scale: 2 } },
@@ -79,6 +108,25 @@ const camposDocumentos = [
 	{ field: 'municipio_prestacao', type: 'string', meta: somenteLeitura({ width: 'half' }) },
 	{ field: 'codigo_servico', type: 'string', meta: somenteLeitura({ width: 'half' }) },
 	{ field: 'descricao_servico', type: 'text', meta: somenteLeitura() },
+	{ field: 'gerado_em', type: 'timestamp', meta: somenteLeitura({ width: 'half', note: 'DataHoraGeracao no ADN.' }) },
+	{ field: 'xml', type: 'text', meta: somenteLeitura({ interface: 'input-code', options: { language: 'xml' } }) },
+];
+
+const camposEventos = [
+	id,
+	{ field: 'empresa', type: 'integer', meta: { interface: 'select-dropdown-m2o', special: ['m2o'], width: 'half', readonly: true, display: 'related-values', display_options: { template: '{{nome}}' } } },
+	{ field: 'nota', type: 'integer', meta: { interface: 'select-dropdown-m2o', special: ['m2o'], width: 'half', readonly: true, note: 'Preenchido assim que a nota estiver na base (vínculo pela chave de acesso).', display: 'related-values', display_options: { template: '{{numero}} · {{emitente_nome}}' } } },
+	{ field: 'nsu', type: 'bigInteger', meta: somenteLeitura({ width: 'half' }), schema: { is_indexed: true } },
+	{ field: 'chave_acesso', type: 'string', meta: somenteLeitura({ width: 'half', note: 'Chave da NFS-e a que o evento se refere.' }), schema: { max_length: 60, is_indexed: true } },
+	{ field: 'codigo', type: 'string', meta: somenteLeitura({ width: 'half', note: 'Código do evento (Anexo II): 101101 = cancelamento, 105102 = substituição...' }) },
+	{ field: 'descricao', type: 'string', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'codigo_motivo', type: 'string', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'motivo', type: 'text', meta: somenteLeitura() },
+	{ field: 'chave_substituta', type: 'string', meta: somenteLeitura({ note: 'Nota que substituiu esta (cancelamento por substituição).' }), schema: { max_length: 60 } },
+	{ field: 'data_evento', type: 'timestamp', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'processado_em', type: 'timestamp', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'sequencia', type: 'integer', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'autor_documento', type: 'string', meta: somenteLeitura({ width: 'half' }) },
 	{ field: 'gerado_em', type: 'timestamp', meta: somenteLeitura({ width: 'half', note: 'DataHoraGeracao no ADN.' }) },
 	{ field: 'xml', type: 'text', meta: somenteLeitura({ interface: 'input-code', options: { language: 'xml' } }) },
 ];
@@ -134,7 +182,7 @@ export async function garantirEsquema(ctx: Contexto): Promise<void> {
 			collection: DOCUMENTOS,
 			meta: {
 				icon: 'description',
-				note: 'NFS-e e eventos recebidos do ADN',
+				note: 'NFS-e recebidas do ADN (os eventos ficam em nfse_eventos)',
 				display_template: '{{numero}} · {{emitente_nome}}',
 				sort_field: null,
 			},
@@ -159,7 +207,7 @@ export async function garantirEsquema(ctx: Contexto): Promise<void> {
 			layout: 'tabular',
 			layout_query: {
 				tabular: {
-					fields: ['emissao', 'numero', 'emitente_nome', 'valor_servico', 'papel', 'tipo_documento', 'empresa'],
+					fields: ['emissao', 'numero', 'emitente_nome', 'valor_servico', 'estado', 'papel', 'empresa'],
 					sort: ['-emissao'],
 				},
 			},
@@ -191,4 +239,49 @@ export async function garantirEsquema(ctx: Contexto): Promise<void> {
 
 		ctx.logger.info(`[nfse-nacional] coleção ${DIVERGENCIAS} criada`);
 	}
+
+	await garantirEventos(ctx);
+}
+
+/**
+ * 0.4.0: eventos em coleção própria, filha das notas. Em instalações antigas cria só o que falta
+ * (o campo estado e a lista de eventos nas notas, a coleção e as relações).
+ */
+async function garantirEventos(ctx: Contexto): Promise<void> {
+	const { CollectionsService, FieldsService, RelationsService } = ctx.services;
+	const schema = await ctx.getSchema();
+
+	if (!schema.collections[DOCUMENTOS].fields.estado) {
+		await new FieldsService({ schema, accountability: null }).createField(DOCUMENTOS, CAMPO_ESTADO);
+		ctx.logger.info(`[nfse-nacional] campo ${DOCUMENTOS}.estado criado`);
+	}
+
+	if (schema.collections[EVENTOS]) return;
+
+	await new CollectionsService({ schema: await ctx.getSchema(), accountability: null }).createOne({
+		collection: EVENTOS,
+		meta: { icon: 'event_note', note: 'Eventos das NFS-e (cancelamento, substituição, manifestação...)', display_template: '{{descricao}} · {{data_evento}}' },
+		schema: {},
+		fields: camposEventos,
+	});
+
+	await new FieldsService({ schema: await ctx.getSchema(), accountability: null }).createField(DOCUMENTOS, CAMPO_EVENTOS);
+	const relacoes = new RelationsService({ schema: await ctx.getSchema(), accountability: null });
+	await relacoes.createOne({ collection: EVENTOS, field: 'empresa', related_collection: EMPRESAS, schema: { on_delete: 'CASCADE' } });
+
+	await relacoes.createOne({
+		collection: EVENTOS,
+		field: 'nota',
+		related_collection: DOCUMENTOS,
+		meta: { one_field: 'eventos' },
+		schema: { on_delete: 'SET NULL' },
+	});
+
+	await new ctx.services.PresetsService({ schema: await ctx.getSchema(), accountability: null }).createOne({
+		collection: EVENTOS,
+		layout: 'tabular',
+		layout_query: { tabular: { fields: ['data_evento', 'descricao', 'nota', 'motivo', 'empresa'], sort: ['-data_evento'] } },
+	});
+
+	ctx.logger.info(`[nfse-nacional] coleção ${EVENTOS} criada`);
 }
