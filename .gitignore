@@ -11,3 +11,7 @@ coverage/
 *.pem
 *.key
 notas-reais/
+
+# Ambiente de ponta a ponta (certificados de teste gerados)
+.e2e/
+.eslintcache

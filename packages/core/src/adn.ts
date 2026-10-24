@@ -1,5 +1,6 @@
-import { Agent, request } from 'node:https';
 import type { CertificadoAberto } from './certificado.js';
+import { Buffer } from 'node:buffer';
+import { Agent, request } from 'node:https';
 
 export const URLS_ADN = {
 	producao: 'https://adn.nfse.gov.br',
@@ -61,6 +62,7 @@ export class ClienteAdn {
 	constructor(opcoes: OpcoesClienteAdn) {
 		this.urlBase = opcoes.urlBase ?? URLS_ADN[opcoes.ambiente ?? 'producao'];
 		this.tempoLimiteMs = opcoes.tempoLimiteMs ?? 60_000;
+
 		this.agente = new Agent({
 			key: opcoes.certificado.chavePem,
 			cert: [opcoes.certificado.certificadoPem, ...opcoes.certificado.cadeiaPem].join('\n'),
@@ -94,18 +96,21 @@ export class ClienteAdn {
 		const json = corpo as Partial<RespostaDfe> | null;
 
 		if (status === 200) return { ...(json as RespostaDfe), LoteDFe: json?.LoteDFe ?? [] };
+
 		// Sem documentos novos o ADN responde 404 (com ou sem corpo).
 		if (status === 404) {
 			return {
-				...(json ?? {}),
+				...json,
 				StatusProcessamento: json?.StatusProcessamento ?? 'NENHUM_DOCUMENTO_LOCALIZADO',
 				LoteDFe: json?.LoteDFe ?? [],
 			};
 		}
+
 		if (status === 429) {
 			const espera = Number(cabecalhos['retry-after']);
 			throw new ErroAdn('Limite de consultas do ADN atingido.', status, corpo, Number.isFinite(espera) ? espera : undefined);
 		}
+
 		throw new ErroAdn(`ADN respondeu HTTP ${status}${resumoErros(json)}`, status, corpo);
 	}
 
@@ -118,18 +123,23 @@ export class ClienteAdn {
 				(res) => {
 					const partes: Buffer[] = [];
 					res.on('data', (p: Buffer) => partes.push(p));
+
 					res.on('end', () => {
 						const texto = Buffer.concat(partes).toString('utf8');
 						let corpo: unknown = null;
+
 						if (texto) {
 							try {
 								corpo = JSON.parse(texto);
-							} catch {
+							}
+							catch {
 								corpo = texto;
 							}
 						}
+
 						resolver({ status: res.statusCode ?? 0, corpo, cabecalhos: res.headers });
 					});
+
 					res.on('error', rejeitar);
 				},
 			);

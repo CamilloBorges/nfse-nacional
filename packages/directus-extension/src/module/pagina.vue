@@ -1,54 +1,3 @@
-<template>
-	<private-view title="NFS-e Nacional">
-		<template #title-outer:prepend>
-			<v-button class="header-icon" rounded disabled icon secondary>
-				<v-icon name="receipt_long" />
-			</v-button>
-		</template>
-
-		<div class="conteudo">
-			<v-notice v-if="erroGeral" type="danger">{{ erroGeral }}</v-notice>
-			<v-notice v-else-if="!carregando && empresas.length === 0" type="info">
-				Cadastre as empresas na coleção "nfse_empresas" (CNPJ só com dígitos) e volte aqui para enviar o certificado.
-			</v-notice>
-
-			<div v-for="empresa in empresas" :key="empresa.id" class="empresa">
-				<h2>{{ empresa.nome || empresa.cnpj }} <small>{{ empresa.cnpj }}</small></h2>
-
-				<dl>
-					<dt>Situação</dt>
-					<dd><span :class="['situacao', empresa.situacao]">{{ empresa.situacao || 'nunca sincronizada' }}</span></dd>
-					<dt>Certificado</dt>
-					<dd>
-						<template v-if="empresa.certificado_titular">
-							{{ empresa.certificado_titular }} · vence em {{ data(empresa.certificado_validade) }}
-						</template>
-						<template v-else-if="empresa.origem_certificado === 'arquivo'">arquivo no servidor ({{ empresa.prefixo_variaveis }})</template>
-						<template v-else>não enviado</template>
-					</dd>
-					<dt>Última sincronização</dt>
-					<dd>{{ empresa.ultima_sincronizacao ? data(empresa.ultima_sincronizacao, true) : '—' }} · NSU {{ empresa.ultimo_nsu }}</dd>
-					<template v-if="empresa.ultimo_erro">
-						<dt>Último erro</dt>
-						<dd class="erro">{{ empresa.ultimo_erro }}</dd>
-					</template>
-				</dl>
-
-				<div class="acoes">
-					<input type="file" accept=".pfx,.p12" @change="escolherArquivo(empresa.id, $event)" />
-					<v-input v-model="senhas[empresa.id]" type="password" placeholder="Senha do certificado" autocomplete="off" />
-					<v-button :loading="enviando === empresa.id" :disabled="!arquivos[empresa.id] || !senhas[empresa.id]" @click="enviar(empresa.id)">
-						Enviar certificado
-					</v-button>
-					<v-button secondary :loading="sincronizando === empresa.id" @click="sincronizar(empresa.id)">Sincronizar agora</v-button>
-				</div>
-
-				<v-notice v-if="mensagens[empresa.id]" :type="mensagens[empresa.id].tipo">{{ mensagens[empresa.id].texto }}</v-notice>
-			</div>
-		</div>
-	</private-view>
-</template>
-
 <script setup lang="ts">
 import { useApi } from '@directus/extensions-sdk';
 import { onMounted, reactive, ref } from 'vue';
@@ -81,13 +30,16 @@ onMounted(carregar);
 
 async function carregar() {
 	carregando.value = true;
+
 	try {
 		const { data } = await api.get('/items/nfse_empresas', { params: { limit: -1, sort: 'nome', fields: ['*'] } });
 		empresas.value = data.data;
 		erroGeral.value = null;
-	} catch (erro) {
+	}
+	catch (erro) {
 		erroGeral.value = textoErro(erro);
-	} finally {
+	}
+	finally {
 		carregando.value = false;
 	}
 }
@@ -100,14 +52,17 @@ async function enviar(id: number) {
 	const arquivo = arquivos[id];
 	if (!arquivo) return;
 	enviando.value = id;
+
 	try {
 		const pfx = await paraBase64(arquivo);
 		const { data: info } = await api.post(`/nfse-nacional/empresas/${id}/certificado`, { pfx, senha: senhas[id] });
 		mensagens[id] = { tipo: 'success', texto: `Certificado de ${info.titular} salvo (vence em ${data(info.validoAte)}).` };
 		await carregar();
-	} catch (erro) {
+	}
+	catch (erro) {
 		mensagens[id] = { tipo: 'danger', texto: textoErro(erro) };
-	} finally {
+	}
+	finally {
 		// A senha não fica na tela depois do envio.
 		senhas[id] = '';
 		enviando.value = null;
@@ -116,15 +71,20 @@ async function enviar(id: number) {
 
 async function sincronizar(id: number) {
 	sincronizando.value = id;
+
 	try {
 		const { data } = await api.post(`/nfse-nacional/empresas/${id}/sincronizar`);
+
 		mensagens[id] = data.aviso
 			? { tipo: 'warning', texto: data.aviso }
 			: { tipo: 'success', texto: `${data.documentos} documento(s) novo(s), NSU ${data.ultimoNsu}${data.concluido ? '' : ' (ainda há mais; continua na próxima execução)'}.` };
+
 		await carregar();
-	} catch (erro) {
+	}
+	catch (erro) {
 		mensagens[id] = { tipo: 'danger', texto: textoErro(erro) };
-	} finally {
+	}
+	finally {
 		sincronizando.value = null;
 	}
 }
@@ -132,8 +92,8 @@ async function sincronizar(id: number) {
 function paraBase64(arquivo: File): Promise<string> {
 	return new Promise((resolver, rejeitar) => {
 		const leitor = new FileReader();
-		leitor.onload = () => resolver(String(leitor.result).split(',')[1] ?? '');
-		leitor.onerror = () => rejeitar(leitor.error);
+		leitor.addEventListener('load', () => resolver(String(leitor.result).split(',')[1] ?? ''));
+		leitor.addEventListener('error', () => rejeitar(leitor.error));
 		leitor.readAsDataURL(arquivo);
 	});
 }
@@ -149,6 +109,73 @@ function textoErro(erro: unknown): string {
 	return e.response?.data?.erro ?? e.response?.data?.errors?.[0]?.message ?? e.message ?? 'Erro desconhecido.';
 }
 </script>
+
+<template>
+	<private-view title="NFS-e Nacional">
+		<template #title-outer:prepend>
+			<v-button class="header-icon" rounded disabled icon secondary>
+				<v-icon name="receipt_long" />
+			</v-button>
+		</template>
+
+		<div class="conteudo">
+			<v-notice v-if="erroGeral" type="danger">
+				{{ erroGeral }}
+			</v-notice>
+			<v-notice v-else-if="!carregando && empresas.length === 0" type="info">
+				Cadastre as empresas na coleção "nfse_empresas" (CNPJ só com dígitos) e volte aqui para enviar o certificado.
+			</v-notice>
+
+			<div v-for="empresa in empresas" :key="empresa.id" class="empresa">
+				<h2>{{ empresa.nome || empresa.cnpj }} <small>{{ empresa.cnpj }}</small></h2>
+
+				<dl>
+					<dt>Situação</dt>
+					<dd><span class="situacao" :class="[empresa.situacao]">{{ empresa.situacao || 'nunca sincronizada' }}</span></dd>
+					<dt>Certificado</dt>
+					<dd>
+						<template v-if="empresa.certificado_titular">
+							{{ empresa.certificado_titular }} · vence em {{ data(empresa.certificado_validade) }}
+						</template>
+						<template v-else-if="empresa.origem_certificado === 'arquivo'">
+							arquivo no servidor ({{ empresa.prefixo_variaveis }})
+						</template>
+						<template v-else>
+							não enviado
+						</template>
+					</dd>
+					<dt>Última sincronização</dt>
+					<dd>{{ empresa.ultima_sincronizacao ? data(empresa.ultima_sincronizacao, true) : '—' }} · NSU {{ empresa.ultimo_nsu }}</dd>
+					<template v-if="empresa.ultimo_erro">
+						<dt>Último erro</dt>
+						<dd class="erro">
+							{{ empresa.ultimo_erro }}
+						</dd>
+					</template>
+				</dl>
+
+				<div class="acoes">
+					<label class="arquivo">
+						<input type="file" accept=".pfx,.p12" @change="escolherArquivo(empresa.id, $event)">
+						<v-icon name="upload_file" small />
+						{{ arquivos[empresa.id]?.name ?? 'Escolher .pfx' }}
+					</label>
+					<v-input v-model="senhas[empresa.id]" type="password" placeholder="Senha do certificado" autocomplete="off" />
+					<v-button :loading="enviando === empresa.id" :disabled="!arquivos[empresa.id] || !senhas[empresa.id]" @click="enviar(empresa.id)">
+						Enviar certificado
+					</v-button>
+					<v-button secondary :loading="sincronizando === empresa.id" @click="sincronizar(empresa.id)">
+						Sincronizar agora
+					</v-button>
+				</div>
+
+				<v-notice v-if="mensagens[empresa.id]" :type="mensagens[empresa.id].tipo">
+					{{ mensagens[empresa.id].texto }}
+				</v-notice>
+			</div>
+		</div>
+	</private-view>
+</template>
 
 <style scoped>
 .conteudo {
@@ -201,6 +228,24 @@ dt {
 	gap: 12px;
 	align-items: center;
 	margin-bottom: 12px;
+}
+.arquivo {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+	padding: 0 16px;
+	height: var(--theme--form--field--input--height, 52px);
+	border: var(--theme--border-width) dashed var(--theme--border-color);
+	border-radius: var(--theme--border-radius);
+	color: var(--theme--foreground-subdued);
+	cursor: pointer;
+}
+.arquivo:hover {
+	border-color: var(--theme--primary);
+	color: var(--theme--primary);
+}
+.arquivo input {
+	display: none;
 }
 .acoes .v-input {
 	max-width: 260px;

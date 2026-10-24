@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import forge from 'node-forge';
 
@@ -34,14 +35,18 @@ export interface CertificadoAberto extends InfoCertificado {
  */
 export function abrirCertificado(pfx: Buffer, senha: string): CertificadoAberto {
 	let p12: forge.pkcs12.Pkcs12Pfx;
+
 	try {
 		const asn1 = forge.asn1.fromDer(forge.util.createBuffer(pfx.toString('binary')));
 		p12 = forge.pkcs12.pkcs12FromAsn1(asn1, false, senha);
-	} catch (erro) {
+	}
+	catch (erro) {
 		const texto = erro instanceof Error ? erro.message : String(erro);
+
 		if (/invalid password|mac could not be verified/i.test(texto)) {
 			throw new ErroCertificado('Senha do certificado incorreta.');
 		}
+
 		throw new ErroCertificado(`Não foi possível ler o arquivo do certificado (${texto}).`);
 	}
 
@@ -53,8 +58,7 @@ export function abrirCertificado(pfx: Buffer, senha: string): CertificadoAberto 
 	if (!chave) throw new ErroCertificado('O arquivo não contém a chave privada.');
 
 	const certificados = (p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] ?? [])
-		.map((b) => b.cert)
-		.filter((c): c is forge.pki.Certificate => Boolean(c));
+		.flatMap((b) => (b.cert ? [b.cert] : []));
 
 	// O certificado do titular é o que tem a mesma chave pública da chave privada.
 	const titular = certificados.find((c) => {
@@ -83,7 +87,7 @@ export function diasParaVencer(info: Pick<InfoCertificado, 'validoAte'>, agora =
 }
 
 export function somenteDigitos(valor: string): string {
-	return valor.replace(/\D/g, '');
+	return valor.replaceAll(/\D/g, '');
 }
 
 /** O ADN aceita consultar qualquer CNPJ com a mesma raiz (8 primeiros dígitos) do certificado. */
@@ -113,9 +117,11 @@ function cnpjDoNomeComum(nomeComum: string): string | null {
 function cnpjDoSubjectAltName(cert: forge.pki.Certificate): string | null {
 	const extensao = cert.extensions.find((e) => e.name === 'subjectAltName') as { value?: string } | undefined;
 	if (!extensao?.value) return null;
+
 	try {
 		return procurarOtherName(forge.asn1.fromDer(extensao.value), OID_CNPJ_ICP_BRASIL);
-	} catch {
+	}
+	catch {
 		return null;
 	}
 }
@@ -127,14 +133,17 @@ function procurarOtherName(no: forge.asn1.Asn1, oid: string): string | null {
 	const indiceOid = filhos.findIndex(
 		(f) => f.type === forge.asn1.Type.OID && forge.asn1.derToOid(f.value as string) === oid,
 	);
-	if (indiceOid >= 0 && filhos[indiceOid + 1]) {
+
+	if (indiceOid !== -1 && filhos[indiceOid + 1]) {
 		const digitos = somenteDigitos(textoInterno(filhos[indiceOid + 1]));
 		if (digitos.length >= 14) return digitos.slice(0, 14);
 	}
+
 	for (const filho of filhos) {
 		const achado = procurarOtherName(filho, oid);
 		if (achado) return achado;
 	}
+
 	return null;
 }
 

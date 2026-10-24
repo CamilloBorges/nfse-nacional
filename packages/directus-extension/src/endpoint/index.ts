@@ -1,6 +1,8 @@
-import { defineEndpoint } from '@directus/extensions-sdk';
-import { ErroUsuario, lerEmpresa, salvarCertificado, sincronizarEmpresa } from '../shared/servico.js';
 import type { Contexto } from '../shared/tipos.js';
+import { Buffer } from 'node:buffer';
+import { defineEndpoint } from '@directus/extensions-sdk';
+import { obterAplicacao } from '../shared/aplicacao.js';
+import { ErroUsuario } from '../shared/repositorio-directus.js';
 
 /**
  * Rotas em /nfse-nacional. Só administradores: enviar certificado e disparar sincronização
@@ -19,13 +21,12 @@ export default defineEndpoint({
 		const tratar = (fn: (req: any) => Promise<unknown>) => async (req: any, res: any) => {
 			try {
 				res.json(await fn(req));
-			} catch (erro) {
-				if (erro instanceof ErroUsuario) {
-					res.status(erro.status).json({ erro: erro.message });
-				} else {
-					ctx.logger.error(`[nfse-nacional] ${erro instanceof Error ? erro.message : erro}`);
-					res.status(500).json({ erro: erro instanceof Error ? erro.message : 'Erro interno.' });
-				}
+			}
+			catch (erro) {
+				const texto = erro instanceof Error ? erro.message : 'Erro interno.';
+				if (erro instanceof ErroUsuario) return res.status(erro.status).json({ erro: texto });
+				ctx.logger.error(`[nfse-nacional] ${texto}`);
+				res.status(500).json({ erro: texto });
 			}
 		};
 
@@ -35,10 +36,13 @@ export default defineEndpoint({
 			somenteAdmin,
 			tratar(async (req) => {
 				const { pfx, senha } = req.body ?? {};
+
 				if (typeof pfx !== 'string' || !pfx || typeof senha !== 'string') {
 					throw new ErroUsuario('Envie "pfx" (base64) e "senha".');
 				}
-				return salvarCertificado(ctx, Number(req.params.id), Buffer.from(pfx, 'base64'), senha, req.accountability);
+
+				const app = await obterAplicacao(ctx);
+				return app.salvarCertificado(Number(req.params.id), Buffer.from(pfx, 'base64'), senha, req.accountability);
 			}),
 		);
 
@@ -46,8 +50,7 @@ export default defineEndpoint({
 			'/empresas/:id/sincronizar',
 			somenteAdmin,
 			tratar(async (req) => {
-				const empresa = await lerEmpresa(ctx, Number(req.params.id));
-				const resultado = await sincronizarEmpresa(ctx, empresa);
+				const resultado = await (await obterAplicacao(ctx)).sincronizar(Number(req.params.id));
 				return resultado ?? { aviso: 'Sincronização não executada (em andamento ou certificado vencido).' };
 			}),
 		);

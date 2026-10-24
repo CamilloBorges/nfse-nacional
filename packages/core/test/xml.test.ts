@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { descompactarXml, lerNfse, papelNaNota } from '../src/xml.js';
@@ -48,6 +49,7 @@ describe('xml', () => {
 
 	it('lê os campos principais mantendo zeros à esquerda', () => {
 		const nota = lerNfse(XML_NFSE);
+
 		expect(nota).toMatchObject({
 			chaveAcesso: '43149022201234567000189000000000001226090000000001',
 			numero: '12',

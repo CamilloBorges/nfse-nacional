@@ -1,0 +1,6 @@
+packages:
+  - packages/*
+
+# Dependências autorizadas a rodar scripts de instalação (o build das extensões usa o esbuild).
+onlyBuiltDependencies:
+  - esbuild

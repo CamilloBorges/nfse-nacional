@@ -1,0 +1,48 @@
+# Gate dos Pull Requests (exigido pela proteção da main) e conferência de cada push na main.
+name: Testes
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificacao:
+    name: Lint, tipos, testes e build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm pacotes
+      # O typecheck da extensão usa os tipos gerados pelo build do núcleo.
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Validação do Directus (Marketplace)
+        run: pnpm validate
+
+  ponta-a-ponta:
+    name: Ponta a ponta (Directus 12 + ADN simulado)
+    needs: verificacao
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm e2e

@@ -1,6 +1,7 @@
-import { createServer, type Server } from 'node:https';
+import type { Server } from 'node:https';
 import type { AddressInfo } from 'node:net';
 import type { TLSSocket } from 'node:tls';
+import { createServer } from 'node:https';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ClienteAdn, ErroAdn } from '../src/adn.js';
 import { abrirCertificado } from '../src/certificado.js';
@@ -23,24 +24,40 @@ beforeAll(async () => {
 			pedidos.push({ url: req.url ?? '', cnCliente: Array.isArray(cn) ? cn[0] : cn });
 			const url = new URL(req.url ?? '/', 'https://localhost');
 			res.setHeader('Content-Type', 'application/json');
-			if (url.pathname === '/contribuintes/DFe/0') {
-				res.end(JSON.stringify({ StatusProcessamento: 'DOCUMENTOS_LOCALIZADOS', LoteDFe: [{ NSU: 1, ChaveAcesso: 'c1', TipoDocumento: 'NFSE', ArquivoXml: 'eA==' }] }));
-			} else if (url.pathname === '/contribuintes/DFe/1') {
-				res.statusCode = 404;
-				res.end();
-			} else if (url.pathname === '/contribuintes/DFe/2') {
-				res.statusCode = 429;
-				res.setHeader('Retry-After', '7');
-				res.end();
-			} else if (url.pathname === '/contribuintes/DFe/3') {
-				res.statusCode = 400;
-				res.end(JSON.stringify({ Erros: [{ Codigo: 'E999', Descricao: 'CNPJ não autorizado' }] }));
-			} else {
-				res.statusCode = 200;
-				res.end(JSON.stringify({ StatusProcessamento: 'DOCUMENTOS_LOCALIZADOS', LoteDFe: [] }));
+
+			switch (url.pathname) {
+				case '/contribuintes/DFe/0': {
+					res.end(JSON.stringify({ StatusProcessamento: 'DOCUMENTOS_LOCALIZADOS', LoteDFe: [{ NSU: 1, ChaveAcesso: 'c1', TipoDocumento: 'NFSE', ArquivoXml: 'eA==' }] }));
+
+					break;
+				}
+				case '/contribuintes/DFe/1': {
+					res.statusCode = 404;
+					res.end();
+
+					break;
+				}
+				case '/contribuintes/DFe/2': {
+					res.statusCode = 429;
+					res.setHeader('Retry-After', '7');
+					res.end();
+
+					break;
+				}
+				case '/contribuintes/DFe/3': {
+					res.statusCode = 400;
+					res.end(JSON.stringify({ Erros: [{ Codigo: 'E999', Descricao: 'CNPJ não autorizado' }] }));
+
+					break;
+				}
+				default: {
+					res.statusCode = 200;
+					res.end(JSON.stringify({ StatusProcessamento: 'DOCUMENTOS_LOCALIZADOS', LoteDFe: [] }));
+				}
 			}
 		},
 	);
+
 	await new Promise<void>((r) => servidor.listen(0, '127.0.0.1', r));
 	urlBase = `https://localhost:${(servidor.address() as AddressInfo).port}`;
 });
@@ -55,6 +72,7 @@ describe('ClienteAdn (mTLS)', () => {
 		const r = await c.consultarDfe(0, '12345678000276');
 		c.fechar();
 		expect(r.LoteDFe).toHaveLength(1);
+
 		expect(pedidos.at(-1)).toEqual({
 			url: '/contribuintes/DFe/0?lote=true&cnpjConsulta=12345678000276',
 			cnCliente: 'EMPRESA TESTE LTDA:12345678000195',
@@ -70,7 +88,7 @@ describe('ClienteAdn (mTLS)', () => {
 
 	it('expõe o Retry-After no 429', async () => {
 		const c = cliente();
-		const erro = await c.consultarDfe(2).catch((e) => e);
+		const erro = await c.consultarDfe(2).catch((erro_) => erro_);
 		c.fechar();
 		expect(erro).toBeInstanceOf(ErroAdn);
 		expect(erro).toMatchObject({ status: 429, esperarSegundos: 7 });
@@ -78,7 +96,7 @@ describe('ClienteAdn (mTLS)', () => {
 
 	it('inclui os erros do ADN na mensagem', async () => {
 		const c = cliente();
-		const erro = await c.consultarDfe(3).catch((e) => e);
+		const erro = await c.consultarDfe(3).catch((erro_) => erro_);
 		c.fechar();
 		expect(erro.message).toBe('ADN respondeu HTTP 400: E999 CNPJ não autorizado');
 	});

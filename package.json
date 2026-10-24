@@ -1,18 +1,31 @@
 {
-  "name": "nfse-nacional-monorepo",
-  "private": true,
-  "description": "Captura das NFS-e do Ambiente de Dados Nacional (ADN) para o Directus",
-  "license": "MIT",
-  "workspaces": [
-    "packages/core",
-    "packages/directus-extension"
-  ],
-  "scripts": {
-    "build": "npm run build -w nfse-nacional-core && npm run build -w directus-extension-nfse-nacional",
-    "test": "npm test -w nfse-nacional-core",
-    "typecheck": "npm run typecheck --workspaces"
-  },
-  "engines": {
-    "node": ">=22"
-  }
+	"name": "nfse-nacional-monorepo",
+	"version": "0.1.0",
+	"private": true,
+	"packageManager": "pnpm@10.27.0",
+	"description": "Busca automática das NFS-e do Ambiente de Dados Nacional (ADN) para o Directus",
+	"license": "MIT",
+	"homepage": "https://github.com/CamilloBorges/nfse-nacional",
+	"engines": {
+		"node": ">=22",
+		"pnpm": ">=10 <11"
+	},
+	"scripts": {
+		"build": "pnpm --recursive run build",
+		"dev": "pnpm --stream --recursive run dev",
+		"test": "pnpm --recursive run test",
+		"test:coverage": "pnpm --recursive run test:coverage",
+		"typecheck": "pnpm --recursive run typecheck",
+		"validate": "pnpm --recursive run validate",
+		"lint": "eslint --cache",
+		"lint:fix": "eslint --cache --fix",
+		"check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run pacotes",
+		"versao": "node scripts/versao.mjs",
+		"e2e": "node scripts/e2e.mjs",
+		"pacotes": "node scripts/conferir-pacotes.mjs"
+	},
+	"devDependencies": {
+		"@directus/eslint-config": "^0.2.0",
+		"eslint": "^10.0.0"
+	}
 }

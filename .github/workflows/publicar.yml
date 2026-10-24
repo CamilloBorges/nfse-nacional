@@ -1,0 +1,67 @@
+# Publica os dois pacotes no npm e cria o Release no GitHub quando uma tag vX.Y.Z é enviada.
+#
+# Sem token guardado: usa o "trusted publishing" do npm (OIDC), com provenance (o repositório é público).
+# No npmjs.com, em cada pacote → Settings → Trusted Publisher, cadastre: GitHub Actions,
+# CamilloBorges/nfse-nacional, workflow publicar.yml. A primeira publicação de um pacote novo
+# precisa ser manual (npm publish), porque o Trusted Publisher se cadastra num pacote que já existe.
+#
+# Para lançar: pnpm versao patch|minor|major → PR → merge → git tag vX.Y.Z na main → git push origin vX.Y.Z
+name: Publicar
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # criar o Release
+  id-token: write # OIDC do trusted publishing
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - name: npm com trusted publishing (11.5.1 ou mais novo)
+        run: npm install -g npm@latest && npm --version
+      - run: pnpm install --frozen-lockfile
+      - name: A tag confere com a versão dos pacotes
+        run: |
+          versao=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${versao}" ]; then
+            echo "::error::A tag ${GITHUB_REF_NAME} não bate com a versão ${versao}."
+            exit 1
+          fi
+          pnpm pacotes
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm validate
+      - name: Publicar no npm (núcleo antes da extensão)
+        env:
+          NPM_CONFIG_PROVENANCE: 'true'
+        run: |
+          for pacote in core directus-extension; do
+            nome=$(node -p "require('./packages/$pacote/package.json').name")
+            versao=$(node -p "require('./packages/$pacote/package.json').version")
+            if npm view "$nome@$versao" version >/dev/null 2>&1; then
+              echo "$nome@$versao já publicado, pulando."
+              continue
+            fi
+            # pnpm pack troca o "workspace:*" pela versão real; npm publish usa o OIDC.
+            (cd packages/$pacote && pnpm pack --pack-destination /tmp/pacotes && npm publish /tmp/pacotes/*$versao.tgz --access public)
+            rm -f /tmp/pacotes/*.tgz
+          done
+      - name: Release no GitHub com as notas do CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          versao="${GITHUB_REF_NAME#v}"
+          awk -v v="$versao" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notas.md
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notas.md

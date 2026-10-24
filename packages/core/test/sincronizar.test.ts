@@ -1,5 +1,6 @@
+import type { ItemDfe, RespostaDfe } from '../src/adn.js';
 import { describe, expect, it, vi } from 'vitest';
-import { ErroAdn, type ItemDfe, type RespostaDfe } from '../src/adn.js';
+import { ErroAdn } from '../src/adn.js';
 import { sincronizar } from '../src/sincronizar.js';
 
 /** Fila fictícia do ADN com `total` documentos, devolvidos de 50 em 50. */
@@ -7,10 +8,12 @@ function filaFalsa(total: number) {
 	return {
 		consultarDfe: vi.fn(async (nsu: number): Promise<RespostaDfe> => {
 			const lote: ItemDfe[] = [];
+
 			for (let n = nsu + 1; n <= Math.min(nsu + 50, total); n++) {
 				lote.push({ NSU: n, ChaveAcesso: `chave${n}`, TipoDocumento: 'NFSE', ArquivoXml: '' });
 			}
-			return { StatusProcessamento: lote.length ? 'DOCUMENTOS_LOCALIZADOS' : 'NENHUM_DOCUMENTO_LOCALIZADO', LoteDFe: lote };
+
+			return { StatusProcessamento: lote.length > 0 ? 'DOCUMENTOS_LOCALIZADOS' : 'NENHUM_DOCUMENTO_LOCALIZADO', LoteDFe: lote };
 		}),
 	};
 }
@@ -59,18 +62,22 @@ describe('sincronizar', () => {
 	it('espera e tenta de novo uma vez no HTTP 429', async () => {
 		const cliente = filaFalsa(10);
 		const original = cliente.consultarDfe.getMockImplementation()!;
+
 		cliente.consultarDfe.mockImplementationOnce(async () => {
 			throw new ErroAdn('limite', 429, null, 5);
 		});
+
 		cliente.consultarDfe.mockImplementation(original);
 		const dormir = vi.fn(semPausa);
 		const r = await sincronizar({ cliente, ultimoNsu: 0, dormir, aoReceberLote: async () => {} });
-		expect(dormir).toHaveBeenCalledWith(5_000);
+		expect(dormir).toHaveBeenCalledWith(5000);
 		expect(r.documentos).toBe(10);
 	});
 
 	it('desiste no segundo 429 seguido', async () => {
-		const cliente = { consultarDfe: vi.fn(async () => Promise.reject(new ErroAdn('limite', 429, null))) };
+		const cliente = { consultarDfe: vi.fn(async () => {
+			throw new ErroAdn('limite', 429, null);
+		}) };
 		await expect(sincronizar({ cliente, ultimoNsu: 0, dormir: semPausa, aoReceberLote: async () => {} })).rejects.toThrow('limite');
 		expect(cliente.consultarDfe).toHaveBeenCalledTimes(2);
 	});

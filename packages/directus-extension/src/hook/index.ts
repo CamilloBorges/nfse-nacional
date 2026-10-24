@@ -1,7 +1,7 @@
-import { defineHook } from '@directus/extensions-sdk';
-import { garantirEsquema } from '../shared/esquema.js';
-import { sincronizarTodas } from '../shared/servico.js';
 import type { Contexto } from '../shared/tipos.js';
+import { defineHook } from '@directus/extensions-sdk';
+import { obterAplicacao } from '../shared/aplicacao.js';
+import { garantirEsquema } from '../shared/esquema.js';
 
 export default defineHook(({ init, schedule }, contexto) => {
 	const ctx = contexto as unknown as Contexto;
@@ -9,14 +9,24 @@ export default defineHook(({ init, schedule }, contexto) => {
 	init('app.after', async () => {
 		try {
 			await garantirEsquema(ctx);
-		} catch (erro) {
-			ctx.logger.error(`[nfse-nacional] não consegui criar as coleções: ${erro instanceof Error ? erro.message : erro}`);
+			await obterAplicacao(ctx);
+		}
+		catch (erro) {
+			ctx.logger.error(`[nfse-nacional] falha ao iniciar: ${erro instanceof Error ? erro.message : erro}`);
 		}
 	});
 
-	// Padrão: a cada 4 horas. NFSE_AGENDA aceita qualquer expressão cron.
+	// Padrão: a cada 4 horas. NFSE_AGENDA aceita qualquer expressão cron; "false" desliga.
 	const agenda = String(ctx.env.NFSE_AGENDA ?? '0 */4 * * *');
+
 	if (agenda !== 'false') {
-		schedule(agenda, () => sincronizarTodas(ctx));
+		schedule(agenda, async () => {
+			try {
+				await (await obterAplicacao(ctx)).sincronizarTodas();
+			}
+			catch (erro) {
+				ctx.logger.error(`[nfse-nacional] ${erro instanceof Error ? erro.message : erro}`);
+			}
+		});
 	}
 });
