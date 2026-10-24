@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não lançado]
 
+## [0.4.0] - 2026-10-24
+
 ### Adicionado
 
 - **Eventos das NFS-e em coleção própria (`nfse_eventos`), filha das notas:** código oficial (Anexo II), descrição,
@@ -20,6 +22,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ### Alterado
 
+- Workflow **Publicar**: mostra os claims OIDC enviados ao npm (sem o token) para comparar com o Trusted Publisher, e
+  explica o que conferir quando o npm recusa.
 - **Os eventos saem de `nfse_documentos`:** quem consultava eventos lá passa a encontrá-los em `nfse_eventos`. A
   migração é automática na inicialização da 0.4.0 (move os eventos já gravados e marca as notas), sem sincronizar de
   novo.
@@ -80,7 +84,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - `directus-extension-nfse-nacional`: coleções, sincronização agendada, rotas de envio de certificado e de sincronização
   (só admin) e tela de certificados.
 
-[Não lançado]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.3.0...HEAD
+[Não lançado]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/CamilloBorges/nfse-nacional/releases/tag/v0.1.0
