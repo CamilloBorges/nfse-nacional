@@ -90,6 +90,14 @@ try {
 	console.log('• coleções criadas pela extensão');
 	await esperar('coleções nfse_*', async () => (await api('GET', '/collections/nfse_documentos', { token })).status === 200);
 
+	console.log('• coleções agrupadas na pasta NFS-e Nacional, com nomes legíveis');
+	const pasta = await api('GET', '/collections/nfse_nacional', { token });
+	assert.equal(pasta.status, 200);
+	assert.equal(pasta.json.data.schema, null, 'pasta não tem tabela');
+	const doMenu = await api('GET', '/collections/nfse_documentos', { token });
+	assert.equal(doMenu.json.data.meta.group, 'nfse_nacional');
+	assert.ok(doMenu.json.data.meta.translations.some((t) => t.language === 'pt-BR' && t.translation === 'Notas (NFS-e)'));
+
 	console.log('• cadastro da empresa');
 	const empresa = await api('POST', '/items/nfse_empresas', { token, corpo: { cnpj: CNPJ, nome: 'Empresa Teste', ambiente: 'producao_restrita' } });
 	assert.equal(empresa.status, 200, JSON.stringify(empresa.json));
