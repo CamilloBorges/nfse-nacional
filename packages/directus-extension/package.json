@@ -1,7 +1,7 @@
 {
 	"name": "directus-extension-nfse-nacional",
 	"type": "module",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "Sincroniza as NFS-e do Ambiente de Dados Nacional (ADN) com coleções do Directus, guardando o certificado A1 cifrado",
 	"author": "Camillo Cardoso Borges",
 	"license": "MIT",

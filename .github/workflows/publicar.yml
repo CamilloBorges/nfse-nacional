@@ -43,6 +43,21 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm validate
+      # O npm compara estes campos com o Trusted Publisher de cada pacote (maiúsculas contam e o
+      # environment precisa estar em branco lá). Mostra só os claims, nunca o token.
+      - name: Identidade OIDC que o npm vai conferir
+        run: |
+          token=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" | node -p "JSON.parse(require('fs').readFileSync(0)).value")
+          echo "::add-mask::$token"
+          echo "$token" | node -e "
+            const fs = require('fs');
+            const c = JSON.parse(Buffer.from(fs.readFileSync(0, 'utf8').split('.')[1], 'base64url'));
+            const linhas = ['### Identidade OIDC enviada ao npm', '| claim | valor |', '|---|---|',
+              ...['repository_owner', 'repository', 'workflow_ref', 'environment', 'ref'].map((k) => '| ' + k + ' | ' + (c[k] ?? '(vazio)') + ' |')];
+            for (const linha of linhas) {
+              console.log(linha);
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, linha + String.fromCharCode(10));
+            }"
       - name: Publicar no npm (núcleo antes da extensão)
         env:
           NPM_CONFIG_PROVENANCE: 'true'
@@ -55,7 +70,11 @@ jobs:
               continue
             fi
             # pnpm pack troca o "workspace:*" pela versão real; npm publish usa o OIDC.
-            (cd packages/$pacote && pnpm pack --pack-destination /tmp/pacotes && npm publish /tmp/pacotes/*$versao.tgz --access public)
+            # A extensão depende do núcleo na mesma versão: se o núcleo falhar, a extensão não é publicada.
+            if ! (cd packages/$pacote && pnpm pack --pack-destination /tmp/pacotes && npm publish /tmp/pacotes/*$versao.tgz --access public); then
+              echo "::error::$nome: o npm recusou. Confira em npmjs.com → $nome → Settings → Trusted Publisher: GitHub Actions, usuário CamilloBorges (com maiúsculas), repositório nfse-nacional, workflow publicar.yml e environment EM BRANCO — iguais aos claims do passo anterior."
+              exit 1
+            fi
             rm -f /tmp/pacotes/*.tgz
           done
       - name: Release no GitHub com as notas do CHANGELOG
