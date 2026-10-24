@@ -17,3 +17,13 @@ REPOSITORIO = "CamilloBorges/nfse-nacional"
 name = "LIMITE"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
+
+# Um Durable Object por assinatura: serializa os relatos da mesma mudança e lembra o número da issue
+# (a listagem do GitHub demora a mostrar uma issue nova e duplicaria).
+[[durable_objects.bindings]]
+name = "ASSINATURAS"
+class_name = "MemoriaDeAssinaturas"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = [ "MemoriaDeAssinaturas" ]
