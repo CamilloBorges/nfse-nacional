@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useApi } from '@directus/extensions-sdk';
 import { onMounted, reactive, ref } from 'vue';
+import { LOGO_NFSE } from './logo-nfse.js';
 
 interface Empresa {
 	id: number;
@@ -165,6 +166,11 @@ function textoErro(erro: unknown): string {
 		</template>
 
 		<div class="conteudo">
+			<header class="cabecalho">
+				<img :src="LOGO_NFSE" alt="NFS-e — Nota Fiscal de Serviço eletrônica">
+				<p>Notas de serviço buscadas automaticamente no Ambiente de Dados Nacional (ADN).</p>
+			</header>
+
 			<v-notice v-if="erroGeral" type="danger">
 				{{ erroGeral }}
 			</v-notice>
@@ -264,11 +270,34 @@ function textoErro(erro: unknown): string {
 					Nenhuma mudança detectada.
 				</p>
 			</section>
+
+			<footer class="creditos">
+				Logotipo da NFS-e: Governo Federal (<a href="https://www.gov.br/nfse" target="_blank" rel="noopener">gov.br/nfse</a>), sob CC BY-ND 3.0.
+				Extensão independente, sem vínculo com a Receita Federal ou o Comitê Gestor da NFS-e.
+			</footer>
 		</div>
 	</private-view>
 </template>
 
 <style scoped>
+.cabecalho {
+	display: flex;
+	gap: 20px;
+	align-items: center;
+	margin-bottom: 24px;
+}
+.cabecalho img {
+	height: 72px;
+	width: auto;
+}
+.cabecalho p {
+	color: var(--theme--foreground-subdued);
+}
+.creditos {
+	margin-top: 32px;
+	font-size: 12px;
+	color: var(--theme--foreground-subdued);
+}
 .conteudo {
 	padding: var(--content-padding);
 	padding-top: 0;

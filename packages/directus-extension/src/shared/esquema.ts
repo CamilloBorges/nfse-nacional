@@ -6,6 +6,17 @@ export const DOCUMENTOS = 'nfse_documentos';
 export const CONFIGURACOES = 'nfse_configuracoes';
 export const DIVERGENCIAS = 'nfse_divergencias';
 export const EVENTOS = 'nfse_eventos';
+/** Pasta (coleção sem tabela) que agrupa as coleções da extensão no menu do Directus. */
+export const PASTA = 'nfse_nacional';
+
+/** Ordem e nomes no menu (pt-BR e en-US). */
+const ORGANIZACAO: Array<{ colecao: string; ptBR: string; enUS: string }> = [
+	{ colecao: EMPRESAS, ptBR: 'Empresas', enUS: 'Companies' },
+	{ colecao: DOCUMENTOS, ptBR: 'Notas (NFS-e)', enUS: 'Service invoices (NFS-e)' },
+	{ colecao: EVENTOS, ptBR: 'Eventos', enUS: 'Events' },
+	{ colecao: DIVERGENCIAS, ptBR: 'Mudanças do ADN', enUS: 'ADN changes' },
+	{ colecao: CONFIGURACOES, ptBR: 'Configurações', enUS: 'Settings' },
+];
 
 const id = {
 	field: 'id',
@@ -241,6 +252,54 @@ export async function garantirEsquema(ctx: Contexto): Promise<void> {
 	}
 
 	await garantirEventos(ctx);
+	// Só cosmético: um erro aqui não pode impedir a inicialização (nem a migração que vem depois).
+	await organizarNoMenu(ctx).catch((erro) => ctx.logger.warn(`[nfse-nacional] não consegui organizar o menu: ${erro instanceof Error ? erro.message : erro}`));
+}
+
+/**
+ * Agrupa as coleções na pasta "NFS-e Nacional" e dá nomes legíveis. Em instalações antigas só ajusta
+ * o que ainda não foi organizado: se alguém mover ou renomear depois, a escolha é respeitada.
+ */
+async function organizarNoMenu(ctx: Contexto): Promise<void> {
+	const { CollectionsService } = ctx.services;
+	const schema = await ctx.getSchema();
+	const colecoes = new CollectionsService({ schema, accountability: null });
+
+	// Pastas não têm tabela e por isso não aparecem em schema.collections: confere pela lista de coleções.
+	const pastaExiste = await colecoes.readOne(PASTA).then(() => true, () => false);
+
+	if (!pastaExiste) {
+		await colecoes.createOne({
+			collection: PASTA,
+			meta: {
+				icon: 'receipt_long',
+				note: 'NFS-e Nacional: notas de serviço do ADN',
+				collapse: 'open',
+				translations: [
+					{ language: 'pt-BR', translation: 'NFS-e Nacional' },
+					{ language: 'en-US', translation: 'NFS-e Nacional' },
+				],
+			},
+			schema: null,
+		});
+
+		ctx.logger.info(`[nfse-nacional] pasta ${PASTA} criada`);
+	}
+
+	const atuais: Array<{ collection: string; meta: { group?: string | null; translations?: unknown } | null }> = await colecoes.readMany(ORGANIZACAO.map((o) => o.colecao));
+
+	for (const [indice, { colecao, ptBR, enUS }] of ORGANIZACAO.entries()) {
+		const meta = atuais.find((a) => a.collection === colecao)?.meta;
+		if (!meta || meta.group) continue;
+
+		await colecoes.updateOne(colecao, {
+			meta: {
+				group: PASTA,
+				sort: indice + 1,
+				...(meta.translations ? {} : { translations: [{ language: 'pt-BR', translation: ptBR }, { language: 'en-US', translation: enUS }] }),
+			},
+		});
+	}
 }
 
 /**

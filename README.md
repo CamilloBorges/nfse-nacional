@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/imagens/logo-nfse-horizontal.png" alt="NFS-e — Nota Fiscal de Serviço eletrônica" width="420"></p>
+
 # nfse-nacional
 
 [![Testes](https://github.com/CamilloBorges/nfse-nacional/actions/workflows/testes.yml/badge.svg)](https://github.com/CamilloBorges/nfse-nacional/actions/workflows/testes.yml)
@@ -18,7 +20,9 @@ periodicamente a API de distribuição do ADN com o certificado A1 da empresa e 
 coleção do Directus. A partir daí, as notas ficam disponíveis pela API REST, pelo GraphQL e pelo **MCP nativo do
 Directus**, com as permissões de cada usuário.
 
-![Tela de certificados](docs/imagens/tela-certificados.png)
+| Módulo NFS-e Nacional                                 | Notas agrupadas na pasta do menu                                         |
+| ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| ![Tela do módulo](docs/imagens/tela-certificados.png) | ![Coleções na pasta NFS-e Nacional](docs/imagens/colecao-documentos.png) |
 
 > Projeto independente, sem vínculo com a Receita Federal ou o Comitê Gestor da NFS-e.
 
@@ -109,3 +113,8 @@ npm e cria o Release.
 ## Licença
 
 [MIT](LICENSE)
+
+> Logotipo da NFS-e: Governo Federal
+> ([gov.br/nfse](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/logos-da-nfs-e)), usado sem alterações
+> sob [CC BY-ND 3.0](https://creativecommons.org/licenses/by-nd/3.0/deed.pt_BR). Este projeto é independente, sem
+> vínculo com a Receita Federal ou o Comitê Gestor da NFS-e.

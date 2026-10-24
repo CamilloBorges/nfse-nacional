@@ -1,3 +1,5 @@
+<p align="center"><img src="https://raw.githubusercontent.com/CamilloBorges/nfse-nacional/main/docs/imagens/logo-nfse-horizontal.png" alt="NFS-e — Nota Fiscal de Serviço eletrônica" width="420"></p>
+
 # NFS-e Nacional para Directus
 
 Sincroniza as **NFS-e do Sistema Nacional** (Ambiente de Dados Nacional – ADN) com coleções do Directus. A extensão
@@ -6,10 +8,13 @@ deixa tudo disponível pela API REST, pelo GraphQL e pelo **MCP nativo do Direct
 
 ![Tela de certificados](https://raw.githubusercontent.com/CamilloBorges/nfse-nacional/main/docs/imagens/tela-certificados.png)
 
-![Notas sincronizadas](https://raw.githubusercontent.com/CamilloBorges/nfse-nacional/main/docs/imagens/colecao-documentos.png)
+![Notas sincronizadas, agrupadas na pasta NFS-e Nacional](https://raw.githubusercontent.com/CamilloBorges/nfse-nacional/main/docs/imagens/colecao-documentos.png)
+
+![Nota cancelada pelos eventos](https://raw.githubusercontent.com/CamilloBorges/nfse-nacional/main/docs/imagens/nota-cancelada.png)
 
 ## Recursos
 
+- Agrupa as coleções na pasta **NFS-e Nacional** do menu, com nomes legíveis em português e inglês.
 - Cria as coleções `nfse_empresas` e `nfse_documentos` na primeira inicialização.
 - Sincroniza por agenda (cron) ou sob demanda, retomando do último NSU; a gravação é idempotente.
 - Lê os campos principais da NFS-e (prestador, tomador, valores, competência, código do serviço) e guarda o XML
@@ -152,3 +157,8 @@ Detalhes em [`packages/core`](https://github.com/CamilloBorges/nfse-nacional/tre
 
 [MIT](https://github.com/CamilloBorges/nfse-nacional/blob/main/LICENSE). Projeto independente, sem vínculo com a Receita
 Federal ou o Comitê Gestor da NFS-e.
+
+> Logotipo da NFS-e: Governo Federal
+> ([gov.br/nfse](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica/logos-da-nfs-e)), usado sem alterações
+> sob [CC BY-ND 3.0](https://creativecommons.org/licenses/by-nd/3.0/deed.pt_BR). Este projeto é independente, sem
+> vínculo com a Receita Federal ou o Comitê Gestor da NFS-e.

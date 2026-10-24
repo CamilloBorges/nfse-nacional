@@ -8,6 +8,14 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Pasta "NFS-e Nacional" no menu do Directus**, agrupando as coleções da extensão em ordem (Empresas, Notas, Eventos,
+  Mudanças do ADN, Configurações), com nomes em português e inglês. Instalações existentes são organizadas na
+  inicialização, sem desfazer o que alguém já tiver movido ou renomeado.
+- **Logotipo oficial da NFS-e** (gov.br/nfse, sem alterações, CC BY-ND 3.0) no cabeçalho do módulo e nos READMEs, com
+  crédito e aviso de que o projeto é independente.
+
 ## [0.4.0] - 2026-10-24
 
 ### Adicionado
