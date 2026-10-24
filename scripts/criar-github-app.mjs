@@ -68,7 +68,8 @@ const servidor = createServer(async (req, res) => {
 			writeFileSync(path.join(pasta, 'chave-pkcs8.pem'), pkcs8);
 			console.log(`App criado: ${app.slug} (id ${app.id}). Aguardando a instalação no repositório…`);
 			res.end(`<p>App criado. Agora <a href="${app.html_url}/installations/new">instale no repositório ${REPOSITORIO}</a> (escolha "Only select repositories").</p>`);
-			esperarInstalacao();
+			// Roda em segundo plano enquanto a pessoa instala o App; erros já são tratados lá dentro.
+			void esperarInstalacao();
 		}
 		catch (erro) {
 			res.end(`<p>Falhou: ${erro.message}</p>`);

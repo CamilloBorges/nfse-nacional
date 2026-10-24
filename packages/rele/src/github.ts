@@ -57,7 +57,8 @@ async function jwtDoApp({ appId, chavePkcs8 }: CredenciaisApp): Promise<string> 
 		btoa(typeof dados === 'string' ? dados : String.fromCodePoint(...new Uint8Array(dados)))
 			.replaceAll('+', '-')
 			.replaceAll('/', '_')
-			.replace(/=+$/, '');
+			// Em base64 o "=" só aparece como preenchimento no fim; sem regex (evita retrocesso).
+			.replaceAll('=', '');
 
 	const cabecalho = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
 	const conteudo = base64url(JSON.stringify({ iat: agora - 60, exp: agora + 540, iss: appId }));

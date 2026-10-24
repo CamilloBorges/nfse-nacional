@@ -44,7 +44,7 @@ export class RegistroDePlugins<T> {
 	}
 
 	nomes(): string[] {
-		return [...this.fabricas.keys()].toSorted();
+		return [...this.fabricas.keys()].toSorted((a, b) => a.localeCompare(b));
 	}
 }
 
