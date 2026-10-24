@@ -1,0 +1,70 @@
+# Ambiente de desenvolvimento e de teste de ponta a ponta (padrão do directus-labs/extensions):
+# Postgres + Directus 12 com a extensão montada + ADN simulado (mTLS).
+#
+#   pnpm build && pnpm e2e            # sobe, testa e derruba
+#   pnpm e2e --manter                 # deixa no ar em http://localhost:18055 (admin@exemplo.com / senha-de-teste)
+#
+# Os certificados de teste são gerados pelo scripts/e2e.mjs em .e2e/certs (fora do git).
+name: nfse-nacional
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: directus
+      POSTGRES_PASSWORD: directus
+      POSTGRES_DB: directus
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U directus]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  adn-simulado:
+    image: node:22-alpine
+    command: [node, /app/adn-simulado.mjs]
+    volumes:
+      - ./scripts/adn-simulado.mjs:/app/adn-simulado.mjs:ro
+      - ./.e2e/certs:/certs:ro
+
+  directus:
+    image: directus/directus:12.4.1
+    ports:
+      - 18055:8055
+    depends_on:
+      postgres:
+        condition: service_healthy
+      adn-simulado:
+        condition: service_started
+    environment:
+      KEY: chave-de-teste
+      SECRET: segredo-de-teste-com-pelo-menos-32-caracteres
+      DB_CLIENT: pg
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_DATABASE: directus
+      DB_USER: directus
+      DB_PASSWORD: directus
+      ADMIN_EMAIL: admin@exemplo.com
+      ADMIN_PASSWORD: senha-de-teste
+      PUBLIC_URL: http://localhost:18055
+      TELEMETRY: 'false'
+      EXTENSIONS_AUTO_RELOAD: 'true'
+      # Extensão
+      NFSE_CHAVE_PROVEDOR: dividida
+      NFSE_CHAVE_MESTRA: ${NFSE_CHAVE_MESTRA:-}
+      NFSE_CHAVE_MESTRA_ARQUIVO: /run/nfse/chave-parte-2
+      NFSE_AGENDA: 'false'
+      NFSE_PAUSA_MS: '0'
+      NFSE_ADN_URL: https://adn-simulado:8443
+      NODE_EXTRA_CA_CERTS: /run/nfse/ac.crt
+    volumes:
+      - ./packages/directus-extension/package.json:/directus/extensions/directus-extension-nfse-nacional/package.json:ro
+      - ./packages/directus-extension/dist:/directus/extensions/directus-extension-nfse-nacional/dist:ro
+      - ./.e2e/certs/ac.crt:/run/nfse/ac.crt:ro
+      - ./.e2e/certs/chave-parte-2:/run/nfse/chave-parte-2:ro
+    healthcheck:
+      test: [CMD, wget, -qO-, http://127.0.0.1:8055/server/ping]
+      interval: 3s
+      timeout: 3s
+      retries: 60

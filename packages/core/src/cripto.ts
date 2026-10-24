@@ -1,3 +1,5 @@
+import type { ProvedorDeChave } from './contratos.js';
+import { Buffer } from 'node:buffer';
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
@@ -15,11 +17,6 @@ export class ErroChave extends Error {
 		super(mensagem);
 		this.name = 'ErroChave';
 	}
-}
-
-export interface ProvedorDeChave {
-	readonly tipo: string;
-	obterChaveMestra(): Promise<Buffer>;
 }
 
 /** Gera uma chave-mestra (ou uma das partes da chave dividida) em base64. */
@@ -58,23 +55,6 @@ export function provedorDividido(parteEnv: string | undefined, caminhoArquivo: s
 	};
 }
 
-/** Escolhe o provedor pelas variáveis NFSE_CHAVE_PROVEDOR, NFSE_CHAVE_MESTRA e NFSE_CHAVE_MESTRA_ARQUIVO. */
-export function criarProvedorDeChave(env: Record<string, unknown>): ProvedorDeChave {
-	const tipo = String(env.NFSE_CHAVE_PROVEDOR ?? 'env').toLowerCase();
-	const valor = env.NFSE_CHAVE_MESTRA as string | undefined;
-	const arquivo = env.NFSE_CHAVE_MESTRA_ARQUIVO as string | undefined;
-	switch (tipo) {
-		case 'env':
-			return provedorEnv(valor);
-		case 'arquivo':
-			return provedorArquivo(arquivo);
-		case 'dividida':
-			return provedorDividido(valor, arquivo);
-		default:
-			throw new ErroChave(`NFSE_CHAVE_PROVEDOR inválido: "${tipo}" (use env, arquivo ou dividida).`);
-	}
-}
-
 interface Envelope {
 	v: 1;
 	/** Identificador da chave-mestra usada (não revela a chave). */
@@ -104,13 +84,16 @@ export function cifrar(dados: Buffer, chaveMestra: Buffer, contexto: string): st
 export function decifrar(texto: string, chaveMestra: Buffer, contexto: string): Buffer {
 	validarTamanho(chaveMestra);
 	const envelope = lerEnvelope(texto);
+
 	if (envelope.kid !== identificadorDaChave(chaveMestra)) {
 		throw new ErroChave('O segredo foi cifrado com outra chave-mestra.');
 	}
+
 	try {
 		const dek = decifrarBloco(envelope.chave, chaveMestra, contexto);
 		return decifrarBloco(envelope.dados, dek, contexto);
-	} catch {
+	}
+	catch {
 		throw new ErroChave('Não foi possível decifrar o segredo (contexto diferente ou dado adulterado).');
 	}
 }
@@ -119,9 +102,11 @@ export function decifrar(texto: string, chaveMestra: Buffer, contexto: string): 
 export function recifrar(texto: string, chaveAntiga: Buffer, chaveNova: Buffer, contexto: string): string {
 	validarTamanho(chaveNova);
 	const envelope = lerEnvelope(texto);
+
 	if (envelope.kid !== identificadorDaChave(chaveAntiga)) {
 		throw new ErroChave('O segredo não foi cifrado com a chave antiga informada.');
 	}
+
 	const dek = decifrarBloco(envelope.chave, chaveAntiga, contexto);
 	return JSON.stringify({ ...envelope, kid: identificadorDaChave(chaveNova), chave: cifrarBloco(dek, chaveNova, contexto) });
 }
@@ -148,11 +133,14 @@ function decifrarBloco(texto: string, chave: Buffer, contexto: string): Buffer {
 
 function lerEnvelope(texto: string): Envelope {
 	let envelope: Envelope;
+
 	try {
 		envelope = JSON.parse(texto);
-	} catch {
+	}
+	catch {
 		throw new ErroChave('Segredo armazenado em formato inválido.');
 	}
+
 	if (envelope?.v !== 1) throw new ErroChave('Versão de segredo não suportada.');
 	return envelope;
 }
@@ -160,17 +148,21 @@ function lerEnvelope(texto: string): Envelope {
 function decodificarChave(valor: string | undefined, origem: string): Buffer {
 	if (!valor?.trim()) throw new ErroChave(`${origem} não definida.`);
 	const chave = Buffer.from(valor.trim(), 'base64');
+
 	if (chave.length !== TAMANHO_CHAVE) {
 		throw new ErroChave(`${origem} deve ter 32 bytes em base64 (gere com: npx nfse-nacional-core gerar-chave).`);
 	}
+
 	return chave;
 }
 
 async function lerArquivo(caminho: string | undefined): Promise<string> {
 	if (!caminho) throw new ErroChave('NFSE_CHAVE_MESTRA_ARQUIVO não definida.');
+
 	try {
 		return await readFile(caminho, 'utf8');
-	} catch {
+	}
+	catch {
 		throw new ErroChave(`Não foi possível ler o arquivo da chave-mestra (${caminho}).`);
 	}
 }

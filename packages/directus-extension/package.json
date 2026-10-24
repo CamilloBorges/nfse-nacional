@@ -1,57 +1,69 @@
 {
-  "name": "directus-extension-nfse-nacional",
-  "version": "0.1.0",
-  "description": "Busca automática das NFS-e do Ambiente de Dados Nacional (ADN) para coleções do Directus, com o certificado A1 cifrado em repouso",
-  "license": "MIT",
-  "type": "module",
-  "keywords": [
-    "directus",
-    "directus-extension",
-    "directus-extension-bundle",
-    "nfse",
-    "nfse-nacional",
-    "adn"
-  ],
-  "files": [
-    "dist"
-  ],
-  "directus:extension": {
-    "type": "bundle",
-    "path": {
-      "app": "dist/app.js",
-      "api": "dist/api.js"
-    },
-    "entries": [
-      {
-        "type": "hook",
-        "name": "nfse-nacional-agenda",
-        "source": "src/hook/index.ts"
-      },
-      {
-        "type": "endpoint",
-        "name": "nfse-nacional",
-        "source": "src/endpoint/index.ts"
-      },
-      {
-        "type": "module",
-        "name": "nfse-nacional-tela",
-        "source": "src/module/index.ts"
-      }
-    ],
-    "host": "^12.0.0"
-  },
-  "scripts": {
-    "build": "directus-extension build",
-    "dev": "directus-extension build -w --no-minify",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "nfse-nacional-core": "^0.1.0"
-  },
-  "devDependencies": {
-    "@directus/extensions-sdk": "18.0.6",
-    "@types/node": "^22.0.0",
-    "typescript": "^5.9.3",
-    "vue": "^3.5.0"
-  }
+	"name": "directus-extension-nfse-nacional",
+	"type": "module",
+	"version": "0.1.0",
+	"description": "Sincroniza as NFS-e do Ambiente de Dados Nacional (ADN) com coleções do Directus, guardando o certificado A1 cifrado",
+	"author": "Camillo Cardoso Borges",
+	"license": "MIT",
+	"homepage": "https://github.com/CamilloBorges/nfse-nacional/tree/main/packages/directus-extension#readme",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/CamilloBorges/nfse-nacional.git",
+		"directory": "packages/directus-extension"
+	},
+	"bugs": "https://github.com/CamilloBorges/nfse-nacional/issues",
+	"keywords": [
+		"directus",
+		"directus-extension",
+		"directus-extension-bundle",
+		"nfse",
+		"nfse-nacional",
+		"adn"
+	],
+	"icon": "receipt_long",
+	"files": [
+		"dist"
+	],
+	"directus:extension": {
+		"type": "bundle",
+		"path": {
+			"app": "dist/app.js",
+			"api": "dist/api.js"
+		},
+		"entries": [
+			{
+				"type": "hook",
+				"name": "nfse-nacional-agenda",
+				"source": "src/hook/index.ts"
+			},
+			{
+				"type": "endpoint",
+				"name": "nfse-nacional",
+				"source": "src/endpoint/index.ts"
+			},
+			{
+				"type": "module",
+				"name": "nfse-nacional-tela",
+				"source": "src/module/index.ts"
+			}
+		],
+		"host": "^12.0.0"
+	},
+	"scripts": {
+		"build": "directus-extension build",
+		"dev": "directus-extension build -w --no-minify",
+		"link": "directus-extension link",
+		"add": "directus-extension add",
+		"validate": "directus-extension validate",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"nfse-nacional-core": "workspace:*"
+	},
+	"devDependencies": {
+		"@directus/extensions-sdk": "18.0.6",
+		"@types/node": "^22.0.0",
+		"typescript": "^5.9.3",
+		"vue": "^3.5.0"
+	}
 }

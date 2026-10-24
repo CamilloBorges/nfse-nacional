@@ -1,0 +1,31 @@
+# Análise do SonarQube (self-hosted em sonar.bomgado.net), no mesmo padrão dos outros projetos.
+# Roda só no push para a main: o Community Build analisa apenas o branch principal.
+# Não faz parte do gate do PR (que é o workflow Testes). Precisa do segredo SONAR_TOKEN.
+name: Sonar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # histórico completo para o blame do Sonar
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test:coverage
+      - name: Caminhos da cobertura relativos à raiz do repositório
+        run: sed -i 's#^SF:src#SF:packages/core/src#' packages/core/coverage/lcov.info
+      - uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonar.bomgado.net

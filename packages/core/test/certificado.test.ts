@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { describe, expect, it } from 'vitest';
 import { abrirCertificado, diasParaVencer, ErroCertificado, mesmaRaizCnpj } from '../src/certificado.js';
 import { criarAc, criarPfxEcnpj } from './certificados-de-teste.js';

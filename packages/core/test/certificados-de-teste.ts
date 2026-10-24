@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { generateKeyPairSync } from 'node:crypto';
 import forge from 'node-forge';
 
@@ -34,8 +35,10 @@ function emitir(opcoes: {
 	cert.setIssuer(opcoes.emissor ? opcoes.emissor.cert.subject.attributes : sujeito);
 	const extensoes: unknown[] = [{ name: 'basicConstraints', cA: Boolean(opcoes.ca) }];
 	if (opcoes.altNames) extensoes.push({ name: 'subjectAltName', altNames: opcoes.altNames });
+
 	if (opcoes.sanOtherNameCnpj) {
 		const { asn1 } = forge;
+
 		// GeneralNames ::= SEQUENCE { otherName [0] { type-id OID, value [0] EXPLICIT OCTET STRING } }
 		extensoes.push({
 			id: '2.5.29.17',
@@ -49,6 +52,7 @@ function emitir(opcoes: {
 			]),
 		});
 	}
+
 	cert.setExtensions(extensoes as forge.pki.CertificateField[]);
 	cert.sign(opcoes.emissor?.chave ?? chave, forge.md.sha256.create());
 	return { chave, cert };

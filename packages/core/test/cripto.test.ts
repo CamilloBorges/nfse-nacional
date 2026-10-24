@@ -1,8 +1,13 @@
+import { Buffer } from 'node:buffer';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { cifrar, criarProvedorDeChave, decifrar, ErroChave, gerarChaveMestra, recifrar } from '../src/cripto.js';
+import { cifrar, decifrar, ErroChave, gerarChaveMestra, recifrar } from '../src/cripto.js';
+import { ErroPlugin } from '../src/plugins.js';
+import { criarRegistros, provedorDeChaveConfigurado } from '../src/registros.js';
+
+const criarProvedorDeChave = (env: Record<string, unknown>) => provedorDeChaveConfigurado(criarRegistros(), env);
 
 const chave = () => Buffer.from(gerarChaveMestra(), 'base64');
 
@@ -44,8 +49,8 @@ describe('envelope', () => {
 });
 
 describe('provedores de chave', () => {
-	const pasta = mkdtempSync(join(tmpdir(), 'nfse-chave-'));
-	const arquivo = join(pasta, 'parte');
+	const pasta = mkdtempSync(path.join(tmpdir(), 'nfse-chave-'));
+	const arquivo = path.join(pasta, 'parte');
 	const parteArquivo = gerarChaveMestra();
 	writeFileSync(arquivo, `${parteArquivo}\n`);
 	const parteEnv = gerarChaveMestra();
@@ -78,6 +83,6 @@ describe('provedores de chave', () => {
 	it('recusa chave curta ou ausente e provedor desconhecido', async () => {
 		await expect(criarProvedorDeChave({ NFSE_CHAVE_MESTRA: 'curta' }).obterChaveMestra()).rejects.toThrow(/32 bytes/);
 		await expect(criarProvedorDeChave({}).obterChaveMestra()).rejects.toThrow(/não definida/);
-		expect(() => criarProvedorDeChave({ NFSE_CHAVE_PROVEDOR: 'cpu' })).toThrow(ErroChave);
+		expect(() => criarProvedorDeChave({ NFSE_CHAVE_PROVEDOR: 'cpu' })).toThrow(ErroPlugin);
 	});
 });

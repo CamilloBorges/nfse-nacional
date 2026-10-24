@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { gunzipSync } from 'node:zlib';
 import { XMLParser } from 'fast-xml-parser';
 import { mesmaRaizCnpj } from './certificado.js';
@@ -83,7 +84,7 @@ export function papelNaNota(nota: ResumoNfse, cnpj: string): Papel {
 function pessoa(no: Record<string, unknown> | undefined): Pessoa {
 	if (!no) return { documento: null, nome: null };
 	const documento = texto(no.CNPJ) ?? texto(no.CPF) ?? texto(no.NIF);
-	return { documento: documento?.replace(/[^\dA-Za-z]/g, '') ?? null, nome: texto(no.xNome) };
+	return { documento: documento?.replaceAll(/[^\dA-Z]/gi, '') ?? null, nome: texto(no.xNome) };
 }
 
 function texto(valor: unknown): string | null {

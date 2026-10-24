@@ -56,7 +56,7 @@ const camposEmpresas = [
 
 const camposDocumentos = [
 	id,
-	{ field: 'empresa', type: 'integer', meta: { interface: 'select-dropdown-m2o', special: ['m2o'], width: 'half', readonly: true } },
+	{ field: 'empresa', type: 'integer', meta: { interface: 'select-dropdown-m2o', special: ['m2o'], width: 'half', readonly: true, display: 'related-values', display_options: { template: '{{nome}}' } } },
 	{ field: 'nsu', type: 'bigInteger', meta: somenteLeitura({ width: 'half' }), schema: { is_indexed: true } },
 	{ field: 'tipo_documento', type: 'string', meta: somenteLeitura({ width: 'half', note: 'NFSE ou EVENTO.' }) },
 	{ field: 'tipo_evento', type: 'string', meta: somenteLeitura({ width: 'half' }) },
@@ -93,6 +93,7 @@ export async function garantirEsquema(ctx: Contexto): Promise<void> {
 			schema: {},
 			fields: camposEmpresas,
 		});
+
 		ctx.logger.info(`[nfse-nacional] coleção ${EMPRESAS} criada`);
 	}
 
@@ -108,13 +109,30 @@ export async function garantirEsquema(ctx: Contexto): Promise<void> {
 			schema: {},
 			fields: camposDocumentos,
 		});
+
 		const relacoes = new RelationsService({ schema: await ctx.getSchema(), accountability: null });
+
 		await relacoes.createOne({
 			collection: DOCUMENTOS,
 			field: 'empresa',
 			related_collection: EMPRESAS,
 			schema: { on_delete: 'CASCADE' },
 		});
+
+		// Visão padrão da coleção (vale para todos os usuários até cada um personalizar a sua).
+		const presets = new ctx.services.PresetsService({ schema: await ctx.getSchema(), accountability: null });
+
+		await presets.createOne({
+			collection: DOCUMENTOS,
+			layout: 'tabular',
+			layout_query: {
+				tabular: {
+					fields: ['emissao', 'numero', 'emitente_nome', 'valor_servico', 'papel', 'tipo_documento', 'empresa'],
+					sort: ['-emissao'],
+				},
+			},
+		});
+
 		ctx.logger.info(`[nfse-nacional] coleção ${DOCUMENTOS} criada`);
 	}
 }

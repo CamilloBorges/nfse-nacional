@@ -1,44 +1,58 @@
 {
-  "name": "nfse-nacional-core",
-  "version": "0.1.0",
-  "description": "Cliente do ADN (NFS-e Nacional): certificado A1, distribuição por NSU, leitura do XML e criptografia do certificado em repouso",
-  "license": "MIT",
-  "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "bin": {
-    "nfse-nacional-core": "dist/cli.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "fast-xml-parser": "^5.11.2",
-    "node-forge": "^1.4.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/node-forge": "^1.3.14",
-    "typescript": "^5.9.3",
-    "vitest": "^5.0.5"
-  },
-  "keywords": [
-    "nfse",
-    "nfs-e",
-    "nfse-nacional",
-    "adn",
-    "sefin",
-    "certificado-digital"
-  ]
+	"name": "nfse-nacional-core",
+	"type": "module",
+	"version": "0.1.0",
+	"description": "Cliente do ADN (NFS-e Nacional): certificado A1, distribuição por NSU, leitura do XML e criptografia do certificado em repouso, extensível por plugins",
+	"author": "Camillo Cardoso Borges",
+	"license": "MIT",
+	"homepage": "https://github.com/CamilloBorges/nfse-nacional/tree/main/packages/core#readme",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/CamilloBorges/nfse-nacional.git",
+		"directory": "packages/core"
+	},
+	"bugs": "https://github.com/CamilloBorges/nfse-nacional/issues",
+	"keywords": [
+		"nfse",
+		"nfs-e",
+		"nfse-nacional",
+		"adn",
+		"sefin",
+		"certificado-digital"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"bin": {
+		"nfse-nacional-core": "dist/cli.js"
+	},
+	"files": [
+		"dist"
+	],
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"dev": "tsc -p tsconfig.build.json --watch",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run",
+		"test:coverage": "vitest run --coverage"
+	},
+	"dependencies": {
+		"fast-xml-parser": "^5.11.2",
+		"node-forge": "^1.4.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"@types/node-forge": "^1.3.14",
+		"@vitest/coverage-v8": "^5.0.5",
+		"typescript": "^5.9.3",
+		"vitest": "^5.0.5"
+	}
 }

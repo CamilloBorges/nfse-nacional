@@ -1,4 +1,5 @@
-import { ErroAdn, type ClienteAdn, type ItemDfe } from './adn.js';
+import type { ClienteAdn, ItemDfe } from './adn.js';
+import { ErroAdn } from './adn.js';
 
 /** O ADN devolve no máximo 50 documentos por consulta. */
 export const TAMANHO_MAXIMO_LOTE = 50;
@@ -16,7 +17,7 @@ export interface OpcoesSincronizacao {
 	 * Grava o lote. Só depois que ela termina o cursor avança: se falhar, a próxima
 	 * execução pede o mesmo lote de novo (grave de forma idempotente, por NSU).
 	 */
-	aoReceberLote(itens: ItemDfe[], ultimoNsu: number): Promise<void>;
+	aoReceberLote: (itens: ItemDfe[], ultimoNsu: number) => Promise<void>;
 	dormir?: (ms: number) => Promise<void>;
 }
 
@@ -30,7 +31,7 @@ export interface ResultadoSincronizacao {
 
 export async function sincronizar(opcoes: OpcoesSincronizacao): Promise<ResultadoSincronizacao> {
 	const maxLotes = opcoes.maxLotes ?? 20;
-	const pausaMs = opcoes.pausaMs ?? 1_000;
+	const pausaMs = opcoes.pausaMs ?? 1000;
 	const dormir = opcoes.dormir ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
 	let ultimoNsu = opcoes.ultimoNsu;
@@ -40,24 +41,28 @@ export async function sincronizar(opcoes: OpcoesSincronizacao): Promise<Resultad
 
 	while (lotes < maxLotes) {
 		let resposta;
+
 		try {
 			resposta = await opcoes.cliente.consultarDfe(ultimoNsu, opcoes.cnpjConsulta);
-		} catch (erro) {
+		}
+		catch (erro) {
 			// Um 429 por vez é tolerado: espera e tenta de novo; o segundo seguido interrompe.
 			if (erro instanceof ErroAdn && erro.status === 429 && !esperouLimite) {
 				esperouLimite = true;
-				await dormir(Math.min(erro.esperarSegundos ?? 30, 120) * 1_000);
+				await dormir(Math.min(erro.esperarSegundos ?? 30, 120) * 1000);
 				continue;
 			}
+
 			throw erro;
 		}
+
 		esperouLimite = false;
 
 		const recebidos = resposta.LoteDFe ?? [];
-		const novos = recebidos.filter((i) => Number(i.NSU) > ultimoNsu).sort((a, b) => Number(a.NSU) - Number(b.NSU));
+		const novos = recebidos.filter((i) => Number(i.NSU) > ultimoNsu).toSorted((a, b) => Number(a.NSU) - Number(b.NSU));
 		if (novos.length === 0) return { ultimoNsu, documentos, lotes, concluido: true };
 
-		const maiorNsu = Number(novos[novos.length - 1].NSU);
+		const maiorNsu = Number(novos.at(-1)?.NSU ?? ultimoNsu);
 		await opcoes.aoReceberLote(novos, maiorNsu);
 		ultimoNsu = maiorNsu;
 		documentos += novos.length;
@@ -66,5 +71,6 @@ export async function sincronizar(opcoes: OpcoesSincronizacao): Promise<Resultad
 		if (recebidos.length < TAMANHO_MAXIMO_LOTE) return { ultimoNsu, documentos, lotes, concluido: true };
 		await dormir(pausaMs);
 	}
+
 	return { ultimoNsu, documentos, lotes, concluido: false };
 }
