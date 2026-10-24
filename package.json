@@ -27,5 +27,12 @@
 	"devDependencies": {
 		"@directus/eslint-config": "^0.2.0",
 		"eslint": "^10.0.0"
+	},
+	"devEngines": {
+		"packageManager": {
+			"name": "pnpm",
+			"version": "10.27.0",
+			"onFail": "download"
+		}
 	}
 }
