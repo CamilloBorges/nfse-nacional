@@ -1,0 +1,44 @@
+{
+  "name": "nfse-nacional-core",
+  "version": "0.1.0",
+  "description": "Cliente do ADN (NFS-e Nacional): certificado A1, distribuição por NSU, leitura do XML e criptografia do certificado em repouso",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "nfse-nacional-core": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.11.2",
+    "node-forge": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/node-forge": "^1.3.14",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  },
+  "keywords": [
+    "nfse",
+    "nfs-e",
+    "nfse-nacional",
+    "adn",
+    "sefin",
+    "certificado-digital"
+  ]
+}

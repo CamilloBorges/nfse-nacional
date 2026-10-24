@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+.env
+.env.*
+
+# Certificados e notas reais nunca entram no repositório
+*.pfx
+*.p12
+*.pem
+*.key
+notas-reais/
