@@ -44,7 +44,7 @@ const atual = {
 	documentacaoAtual: {
 		atualizadoEm: atualizadoEm(documentacao),
 		// Os arquivos trazem versão e data no nome (ex.: nfse-esquemas_xsd-v1-01-20260209.zip).
-		arquivos: [...new Set(documentacao.match(/documentacao-atual\/[^"#?]+\.(?:pdf|zip|xlsx)/g))].map((a) => a.split('/')[1]).toSorted(),
+		arquivos: [...new Set(documentacao.match(/documentacao-atual\/[^"#?]+\.(?:pdf|zip|xlsx)/g))].map((a) => a.split('/')[1]).toSorted((a, b) => a.localeCompare(b)),
 	},
 	atualizacoesEImplantacoes: { atualizadoEm: atualizadoEm(atualizacoes) },
 };
