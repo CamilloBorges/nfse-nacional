@@ -7,8 +7,9 @@ import type { RegistroDePlugins } from './plugins.js';
 import type { ResultadoSincronizacao } from './sincronizar.js';
 import { ClienteAdn, ErroAdn } from './adn.js';
 import { abrirCertificado, diasParaVencer, somenteDigitos } from './certificado.js';
-import { divergencia, semRepeticao, verificarItem, verificarNota, verificarResposta } from './contrato-adn.js';
+import { divergencia, semRepeticao, verificarEvento, verificarItem, verificarNota, verificarResposta } from './contrato-adn.js';
 import { tratarDivergencias } from './divergencias.js';
+import { lerEvento } from './eventos.js';
 import { sincronizar } from './sincronizar.js';
 import { descompactarXml, lerNfse, papelNaNota } from './xml.js';
 
@@ -167,16 +168,29 @@ function resumo(divergencias: Divergencia[]): string {
 function paraDocumento(item: ItemDfe, empresa: EmpresaNfse, log?: Registrador): DocumentoRecebido {
 	const divergencias = verificarItem(item);
 	const xml = item.ArquivoXml ? descompactarXml(item.ArquivoXml) : '';
-	if (item.TipoDocumento !== 'NFSE') return { item, xml, nota: null, papel: null, divergencias };
+	const vazio = { item, xml, nota: null, papel: null, evento: null };
+
+	if (item.TipoDocumento === 'EVENTO') {
+		try {
+			const evento = lerEvento(xml);
+			return { ...vazio, evento, divergencias: [...divergencias, ...verificarEvento(evento)] };
+		}
+		catch (erro) {
+			log?.warn(`[nfse-nacional] NSU ${item.NSU}: não consegui ler o evento (${mensagem(erro)}).`);
+			return { ...vazio, divergencias: [...divergencias, divergencia('xml_ilegivel', 'evento/infEvento')] };
+		}
+	}
+
+	if (item.TipoDocumento !== 'NFSE') return { ...vazio, divergencias };
 
 	try {
 		const nota = lerNfse(xml);
-		return { item, xml, nota, papel: papelNaNota(nota, empresa.cnpj), divergencias: [...divergencias, ...verificarNota(nota)] };
+		return { ...vazio, nota, papel: papelNaNota(nota, empresa.cnpj), divergencias: [...divergencias, ...verificarNota(nota)] };
 	}
 	catch (erro) {
 		// O XML é guardado mesmo assim; os campos podem ser preenchidos depois.
 		log?.warn(`[nfse-nacional] NSU ${item.NSU}: não consegui ler o XML (${mensagem(erro)}).`);
-		return { item, xml, nota: null, papel: null, divergencias: [...divergencias, divergencia('xml_ilegivel', 'NFSe/infNFSe')] };
+		return { ...vazio, divergencias: [...divergencias, divergencia('xml_ilegivel', 'NFSe/infNFSe')] };
 	}
 }
 

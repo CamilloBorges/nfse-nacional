@@ -7,7 +7,7 @@ GitHub fica só aqui; as instalações não precisam de token.
 ## O que ele faz
 
 - `POST /relatos` aceita só o formato exato do plugin: tipo da divergência (lista fechada), detalhe com caracteres de
-  identificador e **sem sequências de 6 ou mais dígitos** (CNPJ, CPF, chave, valores), versões, ambiente e o id
+  identificador e **sem sequências de 7 ou mais dígitos** (CNPJ, CPF, chave, valores), versões, ambiente e o id
   aleatório da instalação. A assinatura precisa ser a do próprio tipo + detalhe, então ninguém escolhe o título da
   issue.
 - Limita a 10 relatos por minuto por instalação e por IP.

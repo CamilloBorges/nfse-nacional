@@ -4,6 +4,7 @@ export * from './contrato-adn.js';
 export * from './contratos.js';
 export * from './cripto.js';
 export * from './divergencias.js';
+export * from './eventos.js';
 export * from './plugins.js';
 export * from './registros.js';
 export * from './servico.js';

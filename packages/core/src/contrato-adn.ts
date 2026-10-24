@@ -1,6 +1,8 @@
 import type { ItemDfe, RespostaDfe } from './adn.js';
+import type { ResumoEvento } from './eventos.js';
 import type { ResumoNfse } from './xml.js';
 import { createHash } from 'node:crypto';
+import { TIPOS_EVENTO } from './eventos.js';
 
 /**
  * O que esta versão do pacote sabe ler do ADN. Quando o ADN muda (nova versão de leiaute, status novo,
@@ -13,12 +15,14 @@ export const CONTRATO_ADN = {
 	tiposDocumento: ['NFSE', 'EVENTO'],
 	camposItem: ['NSU', 'ChaveAcesso', 'TipoDocumento', 'ArquivoXml'] as const,
 	camposEssenciaisNota: ['chaveAcesso', 'numero', 'competencia', 'valorServico', 'emitente'] as const,
+	camposEssenciaisEvento: ['chaveNfse', 'codigo', 'dataEvento'] as const,
 } as const;
 
 export type TipoDivergencia =
 	| 'leiaute_desconhecido'
 	| 'status_desconhecido'
 	| 'tipo_documento_desconhecido'
+	| 'tipo_evento_desconhecido'
 	| 'campo_ausente'
 	| 'campo_essencial_vazio'
 	| 'xml_ilegivel'
@@ -42,13 +46,13 @@ export function divergencia(tipo: TipoDivergencia, detalhe: string): Divergencia
 }
 
 /**
- * Deixa só caracteres de identificador e corta sequências longas de dígitos (CNPJ, CPF, chave de
- * acesso, valores): o detalhe de uma divergência pode sair da instalação.
+ * Deixa só caracteres de identificador e corta sequências de 7 ou mais dígitos (CPF, CNPJ, chave de
+ * acesso); códigos oficiais de 6 dígitos, como o do evento, passam: o detalhe de uma divergência pode sair da instalação.
  */
 export function detalheSeguro(texto: string): string {
 	return texto
 		.replaceAll(/[^\w.:/@=-]/g, '_')
-		.replaceAll(/\d{6,}/g, '#')
+		.replaceAll(/\d{7,}/g, '#')
 		.slice(0, 80);
 }
 
@@ -91,6 +95,17 @@ export function verificarNota(nota: ResumoNfse): Divergencia[] {
 		if (valor === null || valor === undefined) achadas.push(divergencia('campo_essencial_vazio', `NFSe.${campo}`));
 	}
 
+	return achadas;
+}
+
+export function verificarEvento(evento: ResumoEvento): Divergencia[] {
+	const achadas: Divergencia[] = [];
+
+	for (const campo of CONTRATO_ADN.camposEssenciaisEvento) {
+		if (evento[campo] === null) achadas.push(divergencia('campo_essencial_vazio', `evento.${campo}`));
+	}
+
+	if (evento.codigo && !TIPOS_EVENTO[evento.codigo]) achadas.push(divergencia('tipo_evento_desconhecido', `e${evento.codigo}`));
 	return achadas;
 }
 

@@ -8,6 +8,7 @@ import { criarRegistros } from '../src/registros.js';
 import { sincronizarEmpresa, situacaoDoCertificado } from '../src/servico.js';
 import { criarAc, criarPfxEcnpj } from './certificados-de-teste.js';
 import { CONTEXTO_RELATO, DivergenciasEmMemoria, RelatorFalso } from './dubles.js';
+import { xmlEvento } from './fixtures.js';
 import { XML_NFSE } from './xml.test.js';
 
 /** Dublês (Service Stub): repositório em memória, fonte fixa e ADN falso. */
@@ -57,7 +58,7 @@ describe('sincronizarEmpresa', () => {
 	it('lê as notas, entrega ao repositório e registra "ok"', async () => {
 		const itens: ItemDfe[] = [
 			{ NSU: 1, ChaveAcesso: 'c1', TipoDocumento: 'NFSE', ArquivoXml: gz(XML_NFSE) },
-			{ NSU: 2, ChaveAcesso: 'c1', TipoDocumento: 'EVENTO', ArquivoXml: gz('<evento/>') },
+			{ NSU: 2, ChaveAcesso: 'c1', TipoDocumento: 'EVENTO', ArquivoXml: gz(xmlEvento()) },
 		];
 		const { repositorio, cliente, deps } = montar({ itens });
 		const r = await sincronizarEmpresa(empresa, deps);
@@ -65,7 +66,7 @@ describe('sincronizarEmpresa', () => {
 		expect(r).toEqual({ ultimoNsu: 2, documentos: 2, lotes: 1, concluido: true });
 		expect(repositorio.cursores).toEqual([2]);
 		expect(repositorio.documentos[0]).toMatchObject({ papel: 'tomador', nota: { numero: '12', valorServico: 450 } });
-		expect(repositorio.documentos[1]).toMatchObject({ nota: null, papel: null, xml: '<evento/>' });
+		expect(repositorio.documentos[1]).toMatchObject({ nota: null, papel: null, evento: { codigo: '101101', chaveNfse: expect.any(String) } });
 		expect(repositorio.estados.at(-1)).toMatchObject({ situacao: 'ok', erro: null });
 		expect(cliente.consultarDfe).toHaveBeenCalledWith(0, undefined);
 		expect(cliente.fechar).toHaveBeenCalled();
@@ -133,5 +134,14 @@ describe('sincronizarEmpresa', () => {
 
 		expect(repositorio.estados.at(-1)?.situacao).toBe('adn_alterado');
 		expect(relator.relatos[0]).toMatchObject({ tipo: 'rota_alterada', detalhe: '/contribuintes/DFe:HTTP_404' });
+	});
+
+	it('evento de tipo novo vira divergência, sem perder o evento', async () => {
+		const itens: ItemDfe[] = [{ NSU: 1, ChaveAcesso: 'c1', TipoDocumento: 'EVENTO', ArquivoXml: gz(xmlEvento('999999')) }];
+		const { repositorio, deps } = montar({ itens });
+		await sincronizarEmpresa(empresa, deps);
+		expect(repositorio.documentos[0].evento?.codigo).toBe('999999');
+		expect(repositorio.estados.at(-1)).toMatchObject({ situacao: 'adn_alterado' });
+		expect(repositorio.estados.at(-1)?.erro).toContain('tipo_evento_desconhecido e999999');
 	});
 });

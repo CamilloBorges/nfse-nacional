@@ -54,6 +54,12 @@ await sincronizarEmpresa(empresa, {
 });
 ```
 
+### Eventos
+
+`lerEvento(xml)` lê um evento do leiaute nacional (o código vem do nome do grupo, ex.: `e101101`). `TIPOS_EVENTO` traz
+os 16 tipos oficiais (Anexo II) e o efeito de cada um na nota; `estadoDaNota(eventos)` devolve `ativa`, `cancelada`,
+`substituida` ou `bloqueada`. Em `DocumentoRecebido`, o evento lido vem em `evento` (e a nota, em `nota`).
+
 ### Contrato do ADN
 
 `CONTRATO_ADN` lista o que esta versão sabe ler: versões de leiaute, valores de `StatusProcessamento` e `TipoDocumento`,

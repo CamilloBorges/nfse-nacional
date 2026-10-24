@@ -13,6 +13,13 @@ const raiz = new URL('..', import.meta.url).pathname.replace(/^\/([A-Z]:)/i, '$1
 const forge = createRequire(path.join(raiz, 'packages/core/package.json'))('node-forge');
 const manter = process.argv.includes('--manter');
 const URL_DIRECTUS = 'http://localhost:18055';
+
+/** Mesmas chaves e evento do ADN simulado (scripts/adn-simulado.mjs). */
+const chave = (numero) => `4314902220123456700018900000000000${String(numero).padStart(4, '0')}26090000000001`;
+const eventoXml = (chaveNfse) =>
+	'<evento xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00"><infEvento><nSeqEvento>1</nSeqEvento><dhProc>2026-09-25T10:00:05-03:00</dhProc>'
+	+ `<pedRegEvento><infPedReg><dhEvento>2026-09-25T10:00:00-03:00</dhEvento><CNPJAutor>01234567000189</CNPJAutor><chNFSe>${chaveNfse}</chNFSe>`
+	+ '<e101101><xDesc>Cancelamento de NFS-e</xDesc><cMotivo>2</cMotivo><xMotivo>Serviço não prestado</xMotivo></e101101></infPedReg></pedRegEvento></infEvento></evento>';
 const CNPJ = '12345678000195';
 
 // ---------- certificados de teste ----------
@@ -117,11 +124,17 @@ try {
 	assert.equal(sinc.status, 200, JSON.stringify(sinc.json));
 	assert.deepEqual(sinc.json, { ultimoNsu: 4, documentos: 4, lotes: 1, concluido: true });
 
-	const docs = await api('GET', '/items/nfse_documentos?sort=nsu&fields=nsu,tipo_documento,papel,numero,valor_servico,emitente_nome,tomador_documento,empresa', { token });
-	assert.equal(docs.json.data.length, 4);
-	assert.deepEqual(docs.json.data[1], { nsu: '2', tipo_documento: 'NFSE', papel: 'tomador', numero: '2', valor_servico: '1137.79', emitente_nome: 'PRESTADOR FICTICIO', tomador_documento: CNPJ, empresa: id });
-	assert.equal(docs.json.data[2].tipo_documento, 'EVENTO');
-	assert.equal(docs.json.data[3].numero, '4', 'a nota do leiaute novo é gravada mesmo assim');
+	const docs = await api('GET', '/items/nfse_documentos?sort=nsu&fields=nsu,tipo_documento,papel,numero,valor_servico,emitente_nome,tomador_documento,empresa,estado', { token });
+	assert.equal(docs.json.data.length, 3, 'só notas em nfse_documentos');
+	assert.deepEqual(docs.json.data[1], { nsu: '2', tipo_documento: 'NFSE', papel: 'tomador', numero: '2', valor_servico: '1137.79', emitente_nome: 'PRESTADOR FICTICIO', tomador_documento: CNPJ, empresa: id, estado: 'ativa' });
+	assert.equal(docs.json.data[2].numero, '4', 'a nota do leiaute novo é gravada mesmo assim');
+
+	console.log('• eventos na coleção filha, ligados à nota, e nota cancelada');
+	const eventos = await api('GET', '/items/nfse_eventos?fields=nsu,codigo,descricao,motivo,chave_acesso,nota.numero,nota.estado', { token });
+	assert.equal(eventos.json.data.length, 1);
+	assert.deepEqual(eventos.json.data[0], { nsu: '3', codigo: '101101', descricao: 'Cancelamento de NFS-e', motivo: 'Erro na emissão', chave_acesso: chave(1), nota: { numero: '1', estado: 'cancelada' } });
+	const comEventos = await api('GET', '/items/nfse_documentos?filter[numero][_eq]=1&fields=estado,eventos.codigo', { token });
+	assert.deepEqual(comEventos.json.data[0], { estado: 'cancelada', eventos: [{ codigo: '101101' }] });
 
 	console.log('• leiaute novo do ADN: empresa avisada, divergência registrada e relatada uma vez, sem dado fiscal');
 	const depois = await api('GET', `/items/nfse_empresas/${id}`, { token });
@@ -149,8 +162,19 @@ try {
 	console.log('• nova sincronização não duplica nem relata de novo');
 	const de_novo = await api('POST', `/nfse-nacional/empresas/${id}/sincronizar`, { token });
 	assert.equal(de_novo.json.documentos, 0);
-	assert.equal(Number((await api('GET', '/items/nfse_documentos?aggregate[count]=*', { token })).json.data[0].count), 4);
+	assert.equal(Number((await api('GET', '/items/nfse_documentos?aggregate[count]=*', { token })).json.data[0].count), 3);
+	assert.equal(Number((await api('GET', '/items/nfse_eventos?aggregate[count]=*', { token })).json.data[0].count), 1);
 	assert.equal(JSON.parse(execSync('docker compose exec -T adn-simulado wget -qO- http://127.0.0.1:8080/relatos', { cwd: raiz }).toString()).length, 1);
+
+	console.log('• migração: evento gravado no formato antigo (0.3.x) vai para nfse_eventos ao reiniciar');
+	const antigo = `insert into nfse_documentos (empresa, nsu, tipo_documento, tipo_evento, chave_acesso, xml) values (${id}, 99, 'EVENTO', 'CANCELAMENTO', '${chave(2)}', '${eventoXml(chave(2))}');`;
+	execSync('docker compose exec -T postgres psql -U directus -d directus -v ON_ERROR_STOP=1', { cwd: raiz, input: antigo });
+	compose('restart directus');
+	await esperar('Directus de volta', async () => (await fetch(`${URL_DIRECTUS}/server/ping`)).ok);
+	await esperar('migração', async () => Number((await api('GET', '/items/nfse_eventos?aggregate[count]=*', { token })).json.data[0].count) === 2);
+	assert.equal(Number((await api('GET', '/items/nfse_documentos?aggregate[count]=*', { token })).json.data[0].count), 3, 'o evento antigo saiu de nfse_documentos');
+	const nota2 = await api('GET', '/items/nfse_documentos?filter[numero][_eq]=2&fields=estado,eventos.nsu', { token });
+	assert.deepEqual(nota2.json.data[0], { estado: 'cancelada', eventos: [{ nsu: '99' }] });
 
 	console.log('• rotas da extensão exigem admin');
 	assert.equal((await api('POST', `/nfse-nacional/empresas/${id}/sincronizar`)).status, 403);

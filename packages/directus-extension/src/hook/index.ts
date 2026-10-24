@@ -2,6 +2,7 @@ import type { Contexto } from '../shared/tipos.js';
 import { defineHook } from '@directus/extensions-sdk';
 import { obterAplicacao } from '../shared/aplicacao.js';
 import { garantirEsquema } from '../shared/esquema.js';
+import { RepositorioDirectus } from '../shared/repositorio-directus.js';
 
 export default defineHook(({ init, schedule }, contexto) => {
 	const ctx = contexto as unknown as Contexto;
@@ -9,6 +10,8 @@ export default defineHook(({ init, schedule }, contexto) => {
 	init('app.after', async () => {
 		try {
 			await garantirEsquema(ctx);
+			// 0.4.0: eventos que versões anteriores gravaram junto com as notas vão para nfse_eventos.
+			await new RepositorioDirectus(ctx).migrarEventosAntigos();
 			await obterAplicacao(ctx);
 		}
 		catch (erro) {
