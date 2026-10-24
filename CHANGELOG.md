@@ -30,8 +30,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 - **Relé:** relatos simultâneos da mesma mudança criavam issues duplicadas (a listagem do GitHub demora a mostrar uma
   issue nova). Agora um Durable Object por assinatura processa um relato de cada vez e lembra o número da issue.
-- Apontamentos do SonarQube: ordenação com `localeCompare`, base64url sem regex com retrocesso e promise em segundo plano
-  explícita.
+- Apontamentos do SonarQube: ordenação com `localeCompare`, base64url sem regex com retrocesso e promise em segundo
+  plano explícita.
 
 ## [0.2.0] - 2026-10-24
 
