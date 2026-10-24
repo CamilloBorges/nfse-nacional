@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não lançado]
 
+## [0.2.0] - 2026-10-24
+
 ### Adicionado
 
 - **Padrão Plugin:** interfaces separadas no núcleo (`ProvedorDeChave`, `FonteDeCertificado`, `RepositorioNfse`),
@@ -35,5 +37,6 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - `directus-extension-nfse-nacional`: coleções, sincronização agendada, rotas de envio de certificado e de sincronização
   (só admin) e tela de certificados.
 
-[Não lançado]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.1.0...HEAD
+[Não lançado]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/CamilloBorges/nfse-nacional/releases/tag/v0.1.0
