@@ -1,5 +1,6 @@
 import type { Buffer } from 'node:buffer';
 import type { Ambiente, ItemDfe } from './adn.js';
+import type { Divergencia } from './contrato-adn.js';
 import type { Papel, ResumoNfse } from './xml.js';
 
 /**
@@ -42,9 +43,11 @@ export interface DocumentoRecebido {
 	/** null para eventos ou quando o XML não pôde ser lido. */
 	nota: ResumoNfse | null;
 	papel: Papel | null;
+	/** Diferenças em relação ao contrato do ADN que este documento revelou. */
+	divergencias: Divergencia[];
 }
 
-export type SituacaoEmpresa = 'ok' | 'certificado_vencendo' | 'certificado_vencido' | 'sem_certificado' | 'erro';
+export type SituacaoEmpresa = 'ok' | 'certificado_vencendo' | 'certificado_vencido' | 'sem_certificado' | 'adn_alterado' | 'erro';
 
 export interface EstadoEmpresa {
 	situacao: SituacaoEmpresa;

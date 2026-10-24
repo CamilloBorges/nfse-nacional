@@ -24,7 +24,9 @@ jobs:
       - run: pnpm build
       - run: pnpm test:coverage
       - name: Caminhos da cobertura relativos à raiz do repositório
-        run: sed -i 's#^SF:src#SF:packages/core/src#' packages/core/coverage/lcov.info
+        run: |
+          sed -i 's#^SF:src#SF:packages/core/src#' packages/core/coverage/lcov.info
+          sed -i 's#^SF:src#SF:packages/rele/src#' packages/rele/coverage/lcov.info
       - uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

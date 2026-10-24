@@ -33,11 +33,13 @@ O núcleo segue o padrão **Plugin** de Martin Fowler (_Patterns of Enterprise A
 ficam no núcleo (_Separated Interface_), as implementações são registradas por nome e a escolha acontece **na
 configuração, em tempo de execução**, nunca no código.
 
-| Ponto de extensão        | Interface            | Escolhido por                   | Embutidos                                              |
-| ------------------------ | -------------------- | ------------------------------- | ------------------------------------------------------ |
-| Provedor de chave-mestra | `ProvedorDeChave`    | `NFSE_CHAVE_PROVEDOR`           | `env`, `arquivo`, `dividida`                           |
-| Fonte de certificado     | `FonteDeCertificado` | `origemCertificado` da empresa  | `arquivo` (a extensão do Directus registra `directus`) |
-| Repositório das notas    | `RepositorioNfse`    | quem chama `sincronizarEmpresa` | (a extensão do Directus fornece o seu)                 |
+| Ponto de extensão        | Interface                 | Escolhido por                      | Embutidos                                              |
+| ------------------------ | ------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| Provedor de chave-mestra | `ProvedorDeChave`         | `NFSE_CHAVE_PROVEDOR`              | `env`, `arquivo`, `dividida`                           |
+| Fonte de certificado     | `FonteDeCertificado`      | `origemCertificado` da empresa     | `arquivo` (a extensão do Directus registra `directus`) |
+| Repositório das notas    | `RepositorioNfse`         | quem chama `sincronizarEmpresa`    | (a extensão do Directus fornece o seu)                 |
+| Relator de divergências  | `RelatorDeDivergencias`   | `NFSE_RELATOR` (com consentimento) | `rele` (relé oficial ou `NFSE_URL_RELE`)               |
+| Registro de divergências | `RepositorioDivergencias` | quem chama `sincronizarEmpresa`    | (a extensão do Directus fornece o seu)                 |
 
 ```ts
 import { carregarPlugins, criarRegistros, listaDaConfig, sincronizarEmpresa } from 'nfse-nacional-core';
@@ -51,6 +53,15 @@ await sincronizarEmpresa(empresa, {
 	config: process.env,
 });
 ```
+
+### Contrato do ADN
+
+`CONTRATO_ADN` lista o que esta versão sabe ler: versões de leiaute, valores de `StatusProcessamento` e `TipoDocumento`,
+campos obrigatórios do lote e campos essenciais da nota. A cada sincronização, `verificarResposta`, `verificarItem` e
+`verificarNota` geram **divergências** (`tipo`, `detalhe`, `assinatura`) quando o ADN foge disso. O detalhe passa por
+`detalheSeguro`, que corta sequências de dígitos: uma divergência nunca carrega dado fiscal. `tratarDivergencias`
+registra e, se houver relator, relata uma vez por assinatura; `acompanharIssues` consulta a API pública do GitHub e
+informa quando a issue for corrigida.
 
 ### Escrevendo um plugin
 

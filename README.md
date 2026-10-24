@@ -1,8 +1,10 @@
 # nfse-nacional
 
 [![Testes](https://github.com/CamilloBorges/nfse-nacional/actions/workflows/testes.yml/badge.svg)](https://github.com/CamilloBorges/nfse-nacional/actions/workflows/testes.yml)
-[![Quality Gate](https://sonar.bomgado.net/api/project_badges/measure?project=nfse-nacional&metric=alert_status)](https://sonar.bomgado.net/dashboard?id=nfse-nacional)
-[![Cobertura](https://sonar.bomgado.net/api/project_badges/measure?project=nfse-nacional&metric=coverage)](https://sonar.bomgado.net/component_measures?id=nfse-nacional&metric=coverage)
+[![Quality Gate](https://sonar.bomgado.net/api/project_badges/measure?project=nfse-nacional&metric=alert_status&token=sqb_aaef068b51b64e3b978bb72c3f667e990a870b8c)](https://sonar.bomgado.net/summary/new_code?id=nfse-nacional)
+[![Cobertura](https://sonar.bomgado.net/api/project_badges/measure?project=nfse-nacional&metric=coverage&token=sqb_aaef068b51b64e3b978bb72c3f667e990a870b8c)](https://sonar.bomgado.net/component_measures?id=nfse-nacional&metric=coverage)
+[![Confiabilidade](https://sonar.bomgado.net/api/project_badges/measure?project=nfse-nacional&metric=reliability_rating&token=sqb_aaef068b51b64e3b978bb72c3f667e990a870b8c)](https://sonar.bomgado.net/summary/overall?id=nfse-nacional)
+[![Segurança](https://sonar.bomgado.net/api/project_badges/measure?project=nfse-nacional&metric=security_rating&token=sqb_aaef068b51b64e3b978bb72c3f667e990a870b8c)](https://sonar.bomgado.net/summary/overall?id=nfse-nacional)
 [![npm core](https://img.shields.io/npm/v/nfse-nacional-core?label=nfse-nacional-core)](https://www.npmjs.com/package/nfse-nacional-core)
 [![npm extensão](https://img.shields.io/npm/v/directus-extension-nfse-nacional?label=directus-extension)](https://www.npmjs.com/package/directus-extension-nfse-nacional)
 ![Directus](https://img.shields.io/badge/Directus-12-6644FF)
@@ -26,6 +28,7 @@ Directus**, com as permissões de cada usuário.
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`nfse-nacional-core`](packages/core)                             | Biblioteca Node independente: certificado A1, cliente mTLS do ADN, distribuição por NSU, leitura do XML, criptografia do certificado e os pontos de extensão (plugins).         |
 | [`directus-extension-nfse-nacional`](packages/directus-extension) | Extensão (bundle) para **Directus 12**: coleções, agenda, rotas e tela de certificados. Instalação e configuração no [README do pacote](packages/directus-extension/README.md). |
+| [`nfse-nacional-rele`](packages/rele)                             | Relé (Cloudflare Worker) que recebe os relatos de mudanças do ADN e abre ou atualiza as issues. Não é publicado no npm.                                                         |
 
 ## Arquitetura
 
@@ -49,6 +52,19 @@ por nome e escolhidas **pela configuração, em tempo de execução**. A extens�
 ```
 
 Detalhes e como escrever um plugin: [README do núcleo](packages/core/README.md).
+
+### Acompanhando as mudanças do ADN
+
+O ADN muda com frequência (leiaute, campos, rotas) e não publica aviso. O projeto se protege em três camadas:
+
+1. **Na instalação:** cada resposta é conferida contra o `CONTRATO_ADN`. Mudança detectada não para a sincronização:
+   vira `situacao = adn_alterado` e um registro em `nfse_divergencias`. Com o **consentimento** de quem usa, a extensão
+   relata ao projeto (sem dado fiscal) pelo [relé](packages/rele), que abre a issue ou soma ocorrências à existente e
+   avisa a instalação quando a correção é lançada.
+2. **No repositório:** o workflow **Vigiar ADN** confere toda semana a
+   [documentação oficial](https://www.gov.br/nfse/pt-br/biblioteca/documentacao-tecnica) (XSD, manuais, anexos, página
+   de atualizações) contra `docs/adn-referencia.json` e abre uma issue quando algo muda.
+3. **Na tela:** a extensão avisa quando há versão nova publicada.
 
 ### O que o ADN entrega
 

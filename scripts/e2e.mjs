@@ -106,24 +106,51 @@ try {
 	assert.match(noBanco, /"v":1,"kid":"[0-9a-f]{16}"/, 'no banco fica o envelope cifrado');
 	assert.ok(!noBanco.includes(pfx.toString('base64').slice(0, 40)), 'o pfx não fica em claro no banco');
 
+	console.log('• consentimento para relatar mudanças do ADN (desligado por padrão)');
+	const configuracao = await api('GET', '/items/nfse_configuracoes', { token });
+	assert.equal(configuracao.json.data.relatar_divergencias, false);
+	assert.match(configuracao.json.data.instalacao, /^[\da-f-]{36}$/);
+	await api('PATCH', '/items/nfse_configuracoes', { token, corpo: { relatar_divergencias: true, url_rele: 'http://adn-simulado:8080' } });
+
 	console.log('• sincronização com o ADN simulado (mTLS)');
 	const sinc = await api('POST', `/nfse-nacional/empresas/${id}/sincronizar`, { token });
 	assert.equal(sinc.status, 200, JSON.stringify(sinc.json));
-	assert.deepEqual(sinc.json, { ultimoNsu: 3, documentos: 3, lotes: 1, concluido: true });
+	assert.deepEqual(sinc.json, { ultimoNsu: 4, documentos: 4, lotes: 1, concluido: true });
 
 	const docs = await api('GET', '/items/nfse_documentos?sort=nsu&fields=nsu,tipo_documento,papel,numero,valor_servico,emitente_nome,tomador_documento,empresa', { token });
-	assert.equal(docs.json.data.length, 3);
+	assert.equal(docs.json.data.length, 4);
 	assert.deepEqual(docs.json.data[1], { nsu: '2', tipo_documento: 'NFSE', papel: 'tomador', numero: '2', valor_servico: '1137.79', emitente_nome: 'PRESTADOR FICTICIO', tomador_documento: CNPJ, empresa: id });
 	assert.equal(docs.json.data[2].tipo_documento, 'EVENTO');
+	assert.equal(docs.json.data[3].numero, '4', 'a nota do leiaute novo é gravada mesmo assim');
 
+	console.log('• leiaute novo do ADN: empresa avisada, divergência registrada e relatada uma vez, sem dado fiscal');
 	const depois = await api('GET', `/items/nfse_empresas/${id}`, { token });
-	assert.equal(Number(depois.json.data.ultimo_nsu), 3);
-	assert.equal(depois.json.data.situacao, 'ok');
+	assert.equal(Number(depois.json.data.ultimo_nsu), 4);
+	assert.equal(depois.json.data.situacao, 'adn_alterado');
+	assert.match(depois.json.data.ultimo_erro, /leiaute_desconhecido NFSe@versao=1\.02/);
 
-	console.log('• nova sincronização não duplica');
+	const divergencias = await api('GET', '/items/nfse_divergencias', { token });
+	assert.equal(divergencias.json.data.length, 1);
+	assert.equal(divergencias.json.data[0].tipo, 'leiaute_desconhecido');
+	assert.equal(divergencias.json.data[0].issue_numero, 1);
+	assert.equal(divergencias.json.data[0].issue_estado, 'aberta');
+
+	const relatos = JSON.parse(execSync('docker compose exec -T adn-simulado wget -qO- http://127.0.0.1:8080/relatos', { cwd: raiz }).toString());
+	assert.equal(relatos.length, 1);
+	assert.equal(relatos[0].versaoDirectus, '12.4.1');
+	assert.equal(relatos[0].instalacao, configuracao.json.data.instalacao);
+	assert.doesNotMatch(JSON.stringify(relatos), /12345678000195|01234567000189|PRESTADOR|99\.90|NFSe xmlns/, 'o relato não leva dado fiscal');
+
+	const situacao = await api('GET', '/nfse-nacional/situacao', { token });
+	assert.equal(situacao.json.relatarDivergencias, true);
+	assert.equal(situacao.json.divergencias[0].issue.numero, 1);
+	assert.match(situacao.json.versaoInstalada, /^\d+\.\d+\.\d+$/);
+
+	console.log('• nova sincronização não duplica nem relata de novo');
 	const de_novo = await api('POST', `/nfse-nacional/empresas/${id}/sincronizar`, { token });
 	assert.equal(de_novo.json.documentos, 0);
-	assert.equal(Number((await api('GET', '/items/nfse_documentos?aggregate[count]=*', { token })).json.data[0].count), 3);
+	assert.equal(Number((await api('GET', '/items/nfse_documentos?aggregate[count]=*', { token })).json.data[0].count), 4);
+	assert.equal(JSON.parse(execSync('docker compose exec -T adn-simulado wget -qO- http://127.0.0.1:8080/relatos', { cwd: raiz }).toString()).length, 1);
 
 	console.log('• rotas da extensão exigem admin');
 	assert.equal((await api('POST', `/nfse-nacional/empresas/${id}/sincronizar`)).status, 403);

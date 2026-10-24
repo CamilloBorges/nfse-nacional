@@ -1,10 +1,14 @@
 import type { ItemDfe } from './adn.js';
 import type { CertificadoAberto } from './certificado.js';
+import type { Divergencia } from './contrato-adn.js';
 import type { DocumentoRecebido, EmpresaNfse, FonteDeCertificado, Registrador, RepositorioNfse, SituacaoEmpresa } from './contratos.js';
+import type { ContextoDoRelato, RelatorDeDivergencias, RepositorioDivergencias } from './divergencias.js';
 import type { RegistroDePlugins } from './plugins.js';
 import type { ResultadoSincronizacao } from './sincronizar.js';
-import { ClienteAdn } from './adn.js';
+import { ClienteAdn, ErroAdn } from './adn.js';
 import { abrirCertificado, diasParaVencer, somenteDigitos } from './certificado.js';
+import { divergencia, semRepeticao, verificarItem, verificarNota, verificarResposta } from './contrato-adn.js';
+import { tratarDivergencias } from './divergencias.js';
 import { sincronizar } from './sincronizar.js';
 import { descompactarXml, lerNfse, papelNaNota } from './xml.js';
 
@@ -18,6 +22,12 @@ export interface DependenciasSincronizacao {
 	fontesDeCertificado: RegistroDePlugins<FonteDeCertificado>;
 	/** Variáveis de configuração (NFSE_MAX_LOTES, NFSE_PAUSA_MS e as lidas pelas fontes). */
 	config: Record<string, unknown>;
+	/** Onde guardar as mudanças do ADN detectadas e, com consentimento, a quem relatá-las. */
+	divergencias?: {
+		repositorio: RepositorioDivergencias;
+		relator?: RelatorDeDivergencias | null;
+		contexto: ContextoDoRelato;
+	};
 	log?: Registrador;
 	/** Troca o cliente HTTP (testes com dublê, ou outro transporte). */
 	criarCliente?: (certificado: CertificadoAberto, empresa: EmpresaNfse) => ClienteDfe;
@@ -30,7 +40,8 @@ const emAndamento = new Set<string>();
 
 /**
  * Sincroniza uma empresa: obtém o certificado pela fonte configurada, confere a validade,
- * percorre a fila do ADN e entrega cada lote ao repositório. O estado final vai para o repositório.
+ * percorre a fila do ADN e entrega cada lote ao repositório, conferindo cada resposta contra o
+ * contrato do ADN. O estado final vai para o repositório.
  * Devolve null quando não sincronizou (já em andamento ou certificado vencido).
  */
 export async function sincronizarEmpresa(empresa: EmpresaNfse, deps: DependenciasSincronizacao): Promise<ResultadoSincronizacao | null> {
@@ -43,6 +54,7 @@ export async function sincronizarEmpresa(empresa: EmpresaNfse, deps: Dependencia
 
 	emAndamento.add(chave);
 	const agora = deps.agora ?? (() => new Date());
+	const achadas: Divergencia[] = [];
 	let cliente: ClienteDfe | undefined;
 	let estadoRegistrado = false;
 
@@ -77,6 +89,7 @@ export async function sincronizarEmpresa(empresa: EmpresaNfse, deps: Dependencia
 			?? new ClienteAdn({ certificado, ambiente: empresa.ambiente, urlBase: (deps.config.NFSE_ADN_URL as string | undefined) || undefined });
 
 		const cnpj = somenteDigitos(empresa.cnpj);
+
 		const resultado = await sincronizar({
 			cliente,
 			ultimoNsu: empresa.ultimoNsu,
@@ -84,11 +97,23 @@ export async function sincronizarEmpresa(empresa: EmpresaNfse, deps: Dependencia
 			maxLotes: Number(deps.config.NFSE_MAX_LOTES ?? 20),
 			pausaMs: Number(deps.config.NFSE_PAUSA_MS ?? 1000),
 			dormir: deps.dormir,
-			aoReceberLote: (itens, ultimoNsu) =>
-				deps.repositorio.gravarLote(empresa, itens.map((i) => paraDocumento(i, empresa, deps.log)), ultimoNsu),
+			aoReceberResposta: (resposta) => achadas.push(...verificarResposta(resposta)),
+			aoReceberLote: (itens, ultimoNsu) => {
+				const documentos = itens.map((i) => paraDocumento(i, empresa, deps.log));
+				for (const d of documentos) achadas.push(...d.divergencias);
+				return deps.repositorio.gravarLote(empresa, documentos, ultimoNsu);
+			},
 		});
 
-		await deps.repositorio.registrarEstado(empresa, { situacao: situacaoDoCertificado(dias), erro: null, sincronizadoEm: agora() });
+		const divergencias = semRepeticao(achadas);
+
+		if (divergencias.length > 0) {
+			await relatar(divergencias, deps);
+			await deps.repositorio.registrarEstado(empresa, { situacao: 'adn_alterado', erro: resumo(divergencias), sincronizadoEm: agora() });
+		}
+		else {
+			await deps.repositorio.registrarEstado(empresa, { situacao: situacaoDoCertificado(dias), erro: null, sincronizadoEm: agora() });
+		}
 
 		deps.log?.info(
 			`[nfse-nacional] ${empresa.cnpj}: ${resultado.documentos} documento(s) em ${resultado.lotes} lote(s), NSU ${resultado.ultimoNsu}${resultado.concluido ? '' : ' (continua na próxima execução)'}.`,
@@ -98,6 +123,14 @@ export async function sincronizarEmpresa(empresa: EmpresaNfse, deps: Dependencia
 	}
 	catch (erro) {
 		deps.log?.error(`[nfse-nacional] ${empresa.cnpj}: ${mensagem(erro)}`);
+
+		// Rota que sumiu também é mudança do ADN: registra e relata como as demais.
+		if (erro instanceof ErroAdn && (erro.status === 404 || erro.status === 410)) {
+			const divergencias = [divergencia('rota_alterada', `/contribuintes/DFe:HTTP_${erro.status}`)];
+			await relatar(divergencias, deps).catch(() => {});
+			await deps.repositorio.registrarEstado(empresa, { situacao: 'adn_alterado', erro: resumo(divergencias) }).catch(() => {});
+			estadoRegistrado = true;
+		}
 
 		if (!estadoRegistrado) {
 			await deps.repositorio.registrarEstado(empresa, { situacao: 'erro', erro: mensagem(erro) }).catch(() => {});
@@ -116,18 +149,34 @@ export function situacaoDoCertificado(diasParaVencer: number): SituacaoEmpresa {
 	return diasParaVencer <= DIAS_AVISO_CERTIFICADO ? 'certificado_vencendo' : 'ok';
 }
 
+async function relatar(divergencias: Divergencia[], deps: DependenciasSincronizacao): Promise<void> {
+	if (!deps.divergencias) {
+		deps.log?.warn(`[nfse-nacional] o ADN mudou: ${resumo(divergencias)}`);
+		return;
+	}
+
+	await tratarDivergencias(divergencias, { ...deps.divergencias, log: deps.log });
+}
+
+function resumo(divergencias: Divergencia[]): string {
+	const itens = divergencias.slice(0, 5).map((d) => `${d.tipo} ${d.detalhe}`);
+	const resto = divergencias.length > 5 ? ` e mais ${divergencias.length - 5}` : '';
+	return `O ADN mudou em relação ao que esta versão sabe ler: ${itens.join('; ')}${resto}. As notas continuam sendo gravadas; atualize o pacote quando houver correção.`;
+}
+
 function paraDocumento(item: ItemDfe, empresa: EmpresaNfse, log?: Registrador): DocumentoRecebido {
-	const xml = descompactarXml(item.ArquivoXml);
-	if (item.TipoDocumento !== 'NFSE') return { item, xml, nota: null, papel: null };
+	const divergencias = verificarItem(item);
+	const xml = item.ArquivoXml ? descompactarXml(item.ArquivoXml) : '';
+	if (item.TipoDocumento !== 'NFSE') return { item, xml, nota: null, papel: null, divergencias };
 
 	try {
 		const nota = lerNfse(xml);
-		return { item, xml, nota, papel: papelNaNota(nota, empresa.cnpj) };
+		return { item, xml, nota, papel: papelNaNota(nota, empresa.cnpj), divergencias: [...divergencias, ...verificarNota(nota)] };
 	}
 	catch (erro) {
 		// O XML é guardado mesmo assim; os campos podem ser preenchidos depois.
 		log?.warn(`[nfse-nacional] NSU ${item.NSU}: não consegui ler o XML (${mensagem(erro)}).`);
-		return { item, xml, nota: null, papel: null };
+		return { item, xml, nota: null, papel: null, divergencias: [...divergencias, divergencia('xml_ilegivel', 'NFSe/infNFSe')] };
 	}
 }
 

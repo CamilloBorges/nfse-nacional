@@ -8,6 +8,22 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não lançado]
 
+### Adicionado
+
+- **Detecção de mudanças do ADN:** `CONTRATO_ADN` (versões de leiaute, status, tipos de documento, campos obrigatórios e
+  essenciais) conferido a cada sincronização. Mudança detectada não interrompe: a nota é gravada, a empresa fica com
+  `situacao = adn_alterado` e a mudança vai para a nova coleção `nfse_divergencias`. Um 404 com corpo inesperado passa a
+  indicar rota alterada, e não "nenhum documento".
+- **Relato opcional ao projeto** (consentimento na nova configuração `nfse_configuracoes`, desligado por padrão): novos
+  pontos de extensão `RelatorDeDivergencias` (relator `rele`) e `RepositorioDivergencias`. O relato leva só tipo,
+  detalhe sem dígitos, versões e um id aleatório da instalação; cada mudança é relatada uma vez.
+- **Relé** (`packages/rele`, Cloudflare Worker em `nfse-rele.bomgado.net`): valida o relato, limita envios, abre a issue
+  ou soma instalações afetadas, devolve a versão da correção e reabre a issue em caso de regressão.
+- Acompanhamento das issues relatadas (API pública do GitHub) e aviso de versão nova da extensão na tela.
+- Workflow semanal **Vigiar ADN**, que compara a documentação oficial com `docs/adn-referencia.json` e abre uma issue
+  quando ela muda.
+- Badges de confiabilidade e segurança do SonarQube (com token de badge).
+
 ## [0.2.0] - 2026-10-24
 
 ### Adicionado

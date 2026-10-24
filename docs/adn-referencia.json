@@ -1,0 +1,28 @@
+{
+	"documentacaoAtual": {
+		"atualizadoEm": "15/08/2026 09h58",
+		"arquivos": [
+			"anexo-c-indop-ibscbs-snnfse-v1-01.xlsx",
+			"anexo_a-municipio_ibge-paises_iso2-v1-00-snnfse-20251210.xlsx",
+			"anexo_b-nbs2-lista_servico_nacional-snnfse-v1-01-20260122.xlsx",
+			"anexo_i-sefin_adn-dps_nfse-snnfse-v1-01-20260209.xlsx",
+			"anexo_ii-sefin_adn-pedregevt_evt-snnfse-v1-01-20260122.xlsx",
+			"anexo_iii-cnc-snnfse-v1-00-20251216.xlsx",
+			"anexo_iv-adn-snnfse-v1-00-20251216.xlsx",
+			"anexo_v-painel_adm_municipal-snnfse-v1-00-20251216.xlsx",
+			"guia-do-painel-administrativo-municipal-nfs-e-v1-2-out2025.pdf",
+			"guia-emissorpubliconacionalweb_snnfse-ern-v12.pdf",
+			"manual-contribuintes-apis-adn-sistema-nacional-nfse.pdf",
+			"manual-contribuintes-emissor-publico-api-emissao-decisao-administrativa-e-judicial.pdf",
+			"manual-contribuintes-emissor-publico-api-sistema-nacional-nfs-e-v1-2-out2025.pdf",
+			"manual-municipios-apis-adn-sistema-nacional-nfs-e-v1-2-out21025.pdf",
+			"manual-municipios-cnc-api-sistema-nacional-nfs-e-v1-2-out21025.pdf",
+			"manual-municipios-emissor-publico-api-sistema-nacional-nfs-e-v1-2-out21025.pdf",
+			"nfse-esquemas_xsd-v1-01-20260209.zip"
+		]
+	},
+	"atualizacoesEImplantacoes": {
+		"atualizadoEm": "21/10/2026 15h01"
+	},
+	"conferidoEm": "2026-10-24"
+}

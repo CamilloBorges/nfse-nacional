@@ -3,9 +3,11 @@ import type { DocumentoRecebido, EmpresaNfse, EstadoEmpresa, RepositorioNfse } f
 import { Buffer } from 'node:buffer';
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
+import { ErroAdn } from '../src/adn.js';
 import { criarRegistros } from '../src/registros.js';
 import { sincronizarEmpresa, situacaoDoCertificado } from '../src/servico.js';
 import { criarAc, criarPfxEcnpj } from './certificados-de-teste.js';
+import { CONTEXTO_RELATO, DivergenciasEmMemoria, RelatorFalso } from './dubles.js';
 import { XML_NFSE } from './xml.test.js';
 
 /** Dublês (Service Stub): repositório em memória, fonte fixa e ADN falso. */
@@ -33,7 +35,7 @@ function montar(opcoes: { pfx?: Buffer; itens?: ItemDfe[]; falhaAdn?: Error } = 
 	const cliente = {
 		consultarDfe: vi.fn(async (nsu: number) => {
 			if (opcoes.falhaAdn) throw opcoes.falhaAdn;
-			return { StatusProcessamento: 'OK', LoteDFe: (opcoes.itens ?? []).filter((i) => i.NSU > nsu) };
+			return { StatusProcessamento: 'DOCUMENTOS_LOCALIZADOS', LoteDFe: (opcoes.itens ?? []).filter((i) => i.NSU > nsu) };
 		}),
 		fechar: vi.fn(),
 	};
@@ -100,5 +102,36 @@ describe('sincronizarEmpresa', () => {
 		expect(situacaoDoCertificado(31)).toBe('ok');
 		expect(situacaoDoCertificado(30)).toBe('certificado_vencendo');
 		expect(situacaoDoCertificado(-1)).toBe('certificado_vencido');
+	});
+
+	it('com o ADN alterado, grava as notas, marca "adn_alterado" e relata uma vez', async () => {
+		const xmlNovo = XML_NFSE.replace('versao="1.00">', 'versao="1.02">');
+		const itens: ItemDfe[] = [
+			{ NSU: 1, ChaveAcesso: 'c1', TipoDocumento: 'NFSE', ArquivoXml: gz(xmlNovo) },
+			{ NSU: 2, ChaveAcesso: 'c2', TipoDocumento: 'NFSE', ArquivoXml: gz(xmlNovo) },
+		];
+		const { repositorio, deps } = montar({ itens });
+		const divergencias = new DivergenciasEmMemoria();
+		const relator = new RelatorFalso();
+
+		const r = await sincronizarEmpresa(empresa, { ...deps, divergencias: { repositorio: divergencias, relator, contexto: CONTEXTO_RELATO } });
+		expect(r?.documentos).toBe(2);
+		expect(repositorio.documentos[0].nota?.numero).toBe('12');
+		expect(repositorio.estados.at(-1)?.situacao).toBe('adn_alterado');
+		expect(repositorio.estados.at(-1)?.erro).toContain('leiaute_desconhecido NFSe@versao=1.02');
+		expect(relator.relatos.map((x) => x.tipo)).toEqual(['leiaute_desconhecido']);
+		expect(JSON.stringify(relator.relatos)).not.toMatch(/12345678000195|01234567000189|450/);
+	});
+
+	it('rota que sumiu (404 com outro corpo) vira "adn_alterado" e relato', async () => {
+		const { repositorio, deps } = montar({ falhaAdn: new ErroAdn('rota', 404, { Erros: [] }) });
+		const relator = new RelatorFalso();
+
+		await expect(
+			sincronizarEmpresa(empresa, { ...deps, divergencias: { repositorio: new DivergenciasEmMemoria(), relator, contexto: CONTEXTO_RELATO } }),
+		).rejects.toThrow('rota');
+
+		expect(repositorio.estados.at(-1)?.situacao).toBe('adn_alterado');
+		expect(relator.relatos[0]).toMatchObject({ tipo: 'rota_alterada', detalhe: '/contribuintes/DFe:HTTP_404' });
 	});
 });

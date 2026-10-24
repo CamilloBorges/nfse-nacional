@@ -1,4 +1,4 @@
-import type { ClienteAdn, ItemDfe } from './adn.js';
+import type { ClienteAdn, ItemDfe, RespostaDfe } from './adn.js';
 import { ErroAdn } from './adn.js';
 
 /** O ADN devolve no máximo 50 documentos por consulta. */
@@ -18,6 +18,8 @@ export interface OpcoesSincronizacao {
 	 * execução pede o mesmo lote de novo (grave de forma idempotente, por NSU).
 	 */
 	aoReceberLote: (itens: ItemDfe[], ultimoNsu: number) => Promise<void>;
+	/** Vê cada resposta do ADN (conferência do contrato). */
+	aoReceberResposta?: (resposta: RespostaDfe) => void;
 	dormir?: (ms: number) => Promise<void>;
 }
 
@@ -57,6 +59,7 @@ export async function sincronizar(opcoes: OpcoesSincronizacao): Promise<Resultad
 		}
 
 		esperouLimite = false;
+		opcoes.aoReceberResposta?.(resposta);
 
 		const recebidos = resposta.LoteDFe ?? [];
 		const novos = recebidos.filter((i) => Number(i.NSU) > ultimoNsu).toSorted((a, b) => Number(a.NSU) - Number(b.NSU));
