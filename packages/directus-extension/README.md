@@ -77,19 +77,35 @@ Alternativa: `origem_certificado = arquivo`, com o `.pfx` no servidor. Preencha 
 
 ### Variáveis
 
-| Variável         | Padrão        |                                                                           |
-| ---------------- | ------------- | ------------------------------------------------------------------------- |
-| `NFSE_AGENDA`    | `0 */4 * * *` | Expressão cron; `false` desliga a agenda.                                 |
-| `NFSE_MAX_LOTES` | `20`          | Lotes de 50 por execução e empresa.                                       |
-| `NFSE_PAUSA_MS`  | `1000`        | Pausa entre consultas ao ADN.                                             |
-| `NFSE_PLUGINS`   |               | Pacotes de plugins, separados por vírgula (nome npm ou caminho absoluto). |
-| `NFSE_ADN_URL`   |               | Substitui o endereço do ADN (proxy ou simulador).                         |
+| Variável         | Padrão                          |                                                                           |
+| ---------------- | ------------------------------- | ------------------------------------------------------------------------- |
+| `NFSE_AGENDA`    | `0 */4 * * *`                   | Expressão cron; `false` desliga a agenda.                                 |
+| `NFSE_MAX_LOTES` | `20`                            | Lotes de 50 por execução e empresa.                                       |
+| `NFSE_PAUSA_MS`  | `1000`                          | Pausa entre consultas ao ADN.                                             |
+| `NFSE_PLUGINS`   |                                 | Pacotes de plugins, separados por vírgula (nome npm ou caminho absoluto). |
+| `NFSE_ADN_URL`   |                                 | Substitui o endereço do ADN (proxy ou simulador).                         |
+| `NFSE_URL_RELE`  | `https://nfse-rele.bomgado.net` | Relé dos relatos de mudanças do ADN (a tela também permite trocar).       |
+| `NFSE_RELATOR`   | `rele`                          | Relator de divergências registrado (plugins podem trazer outros).         |
 
 ## Renovação do certificado
 
 Envie o novo `.pfx` pelo módulo; não é preciso reiniciar. A `situacao` da empresa fica `certificado_vencendo` nos
 últimos 30 dias e `certificado_vencido` depois (a sincronização é suspensa). Para receber aviso, crie um Flow disparado
 na atualização de `nfse_empresas`.
+
+## Mudanças do ADN
+
+A legislação e o ADN mudam (versão do leiaute, campos, rotas). A extensão confere cada resposta contra o que sabe ler e,
+quando algo foge do esperado:
+
+- **continua gravando** as notas (o XML original nunca se perde);
+- marca a empresa com `situacao = adn_alterado` e explica a mudança em `ultimo_erro` (um Flow pode avisar por e-mail);
+- registra a mudança em **Nfse Divergencias**, com o número de ocorrências.
+
+Em **NFS-e Nacional → Mudanças do ADN**, você pode autorizar o **relato automático** (desligado por padrão). Com ele, a
+extensão envia ao projeto só o tipo da mudança, as versões e um id aleatório da instalação. **Nunca** CNPJ, XML, valores
+ou nomes. O relé do projeto abre a issue no GitHub ou soma uma ocorrência à que já existe. Quando a issue é fechada, a
+tela mostra em que versão foi corrigido, e um aviso aparece sempre que houver versão nova da extensão.
 
 ## Plugins
 

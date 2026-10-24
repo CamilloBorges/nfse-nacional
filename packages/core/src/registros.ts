@@ -1,12 +1,15 @@
 import type { CertificadoBruto, EmpresaNfse, FonteDeCertificado, ProvedorDeChave } from './contratos.js';
+import type { RelatorDeDivergencias } from './divergencias.js';
 import { readFile } from 'node:fs/promises';
 import { provedorArquivo, provedorDividido, provedorEnv } from './cripto.js';
+import { relatorRele, URL_RELE_PADRAO } from './divergencias.js';
 import { ErroPlugin, RegistroDePlugins } from './plugins.js';
 
 /** Os pontos de extensão do núcleo. É o objeto que um pacote de plugins recebe em `registrar`. */
 export interface RegistrosNfse {
 	provedoresDeChave: RegistroDePlugins<ProvedorDeChave>;
 	fontesDeCertificado: RegistroDePlugins<FonteDeCertificado>;
+	relatoresDeDivergencias: RegistroDePlugins<RelatorDeDivergencias>;
 }
 
 /** Cria os registros já com as implementações embutidas. */
@@ -21,7 +24,10 @@ export function criarRegistros(): RegistrosNfse {
 	const fontesDeCertificado = new RegistroDePlugins<FonteDeCertificado>('fonte de certificado');
 	fontesDeCertificado.registrar('arquivo', (c) => fonteArquivo(c));
 
-	return { provedoresDeChave, fontesDeCertificado };
+	const relatoresDeDivergencias = new RegistroDePlugins<RelatorDeDivergencias>('relator de divergências');
+	relatoresDeDivergencias.registrar('rele', (c) => relatorRele(String(c.NFSE_URL_RELE || URL_RELE_PADRAO)));
+
+	return { provedoresDeChave, fontesDeCertificado, relatoresDeDivergencias };
 }
 
 /** O provedor de chave escolhido pela configuração (NFSE_CHAVE_PROVEDOR, padrão "env"). */

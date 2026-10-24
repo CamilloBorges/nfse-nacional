@@ -1,0 +1,43 @@
+# Vigia semanal da documentação oficial do ADN. Se algo mudou (XSD, manuais, anexos, página de
+# atualizações), abre uma issue com rótulo adn-documentacao, ou comenta na que já estiver aberta.
+name: Vigiar ADN
+
+on:
+  schedule:
+    - cron: '0 11 * * 1' # segundas, 8h de Brasília
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  vigiar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Comparar com a referência
+        id: comparar
+        run: |
+          set +e
+          node scripts/vigiar-adn.mjs > relatorio.md
+          echo "codigo=$?" >> "$GITHUB_OUTPUT"
+          cat relatorio.md
+      - name: Falha ao ler as páginas
+        if: steps.comparar.outputs.codigo != '0' && steps.comparar.outputs.codigo != '2'
+        run: exit 1
+      - name: Abrir ou atualizar a issue
+        if: steps.comparar.outputs.codigo == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create adn-documentacao --color FBCA04 --description "Mudança na documentação oficial do ADN" 2>/dev/null || true
+          aberta=$(gh issue list --label adn-documentacao --state open --json number --jq '.[0].number')
+          if [ -n "$aberta" ]; then
+            gh issue comment "$aberta" --body-file relatorio.md
+          else
+            gh issue create --title "Documentação do ADN mudou ($(date +%F))" --label adn-documentacao --body-file relatorio.md
+          fi

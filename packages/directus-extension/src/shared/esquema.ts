@@ -1,7 +1,10 @@
 import type { Contexto } from './tipos.js';
+import { randomUUID } from 'node:crypto';
 
 export const EMPRESAS = 'nfse_empresas';
 export const DOCUMENTOS = 'nfse_documentos';
+export const CONFIGURACOES = 'nfse_configuracoes';
+export const DIVERGENCIAS = 'nfse_divergencias';
 
 const id = {
 	field: 'id',
@@ -40,7 +43,7 @@ const camposEmpresas = [
 	},
 	{ field: 'prefixo_variaveis', type: 'string', meta: { width: 'half', note: 'Só para origem "arquivo". Ex.: NFSE_EMPRESA1 → NFSE_EMPRESA1_CERT_PATH.' } },
 	{ field: 'ultimo_nsu', type: 'bigInteger', meta: { width: 'half', note: 'Cursor da distribuição. Volte para 0 para baixar tudo de novo.' }, schema: { default_value: 0, is_nullable: false } },
-	{ field: 'situacao', type: 'string', meta: somenteLeitura({ width: 'half', note: 'ok, certificado_vencendo, certificado_vencido, sem_certificado ou erro.' }) },
+	{ field: 'situacao', type: 'string', meta: somenteLeitura({ width: 'half', note: 'ok, certificado_vencendo, certificado_vencido, sem_certificado, adn_alterado ou erro.' }) },
 	{ field: 'ultima_sincronizacao', type: 'timestamp', meta: somenteLeitura({ width: 'half' }) },
 	{ field: 'ultimo_erro', type: 'text', meta: somenteLeitura() },
 	{ field: 'certificado_titular', type: 'string', meta: somenteLeitura({ width: 'half' }) },
@@ -78,6 +81,35 @@ const camposDocumentos = [
 	{ field: 'descricao_servico', type: 'text', meta: somenteLeitura() },
 	{ field: 'gerado_em', type: 'timestamp', meta: somenteLeitura({ width: 'half', note: 'DataHoraGeracao no ADN.' }) },
 	{ field: 'xml', type: 'text', meta: somenteLeitura({ interface: 'input-code', options: { language: 'xml' } }) },
+];
+
+const camposConfiguracoes = [
+	id,
+	{
+		field: 'relatar_divergencias',
+		type: 'boolean',
+		meta: {
+			interface: 'boolean',
+			options: { label: 'Relatar mudanças do ADN ao projeto' },
+			note: 'Quando o ADN mudar (leiaute, campos, rotas), envia ao projeto só o tipo da mudança e as versões, para abrir uma issue no GitHub. Nunca envia CNPJ, XML, valores ou nomes.',
+		},
+		schema: { default_value: false, is_nullable: false },
+	},
+	{ field: 'url_rele', type: 'string', meta: { note: 'Deixe em branco para usar o relé oficial do projeto.' } },
+	{ field: 'instalacao', type: 'string', meta: somenteLeitura({ note: 'Identificador aleatório desta instalação (usado só para limitar envios no relé).' }) },
+];
+
+const camposDivergencias = [
+	id,
+	{ field: 'assinatura', type: 'string', meta: somenteLeitura({ width: 'half' }), schema: { max_length: 32, is_unique: true, is_nullable: false } },
+	{ field: 'tipo', type: 'string', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'detalhe', type: 'string', meta: somenteLeitura() },
+	{ field: 'ocorrencias', type: 'integer', meta: somenteLeitura({ width: 'half' }), schema: { default_value: 1 } },
+	{ field: 'ultima_ocorrencia', type: 'timestamp', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'issue_numero', type: 'integer', meta: somenteLeitura({ width: 'half' }) },
+	{ field: 'issue_estado', type: 'string', meta: somenteLeitura({ width: 'half', note: 'aberta ou fechada.' }) },
+	{ field: 'issue_url', type: 'string', meta: somenteLeitura({ display: 'formatted-value', display_options: { format: false } }) },
+	{ field: 'corrigida_na_versao', type: 'string', meta: somenteLeitura({ width: 'half', note: 'Atualize a extensão para esta versão.' }) },
 ];
 
 /** Cria as coleções que faltarem. Não altera nem apaga o que já existe. */
@@ -134,5 +166,29 @@ export async function garantirEsquema(ctx: Contexto): Promise<void> {
 		});
 
 		ctx.logger.info(`[nfse-nacional] coleção ${DOCUMENTOS} criada`);
+	}
+
+	if (!schema.collections[CONFIGURACOES]) {
+		await colecoes.createOne({
+			collection: CONFIGURACOES,
+			meta: { icon: 'tune', singleton: true, note: 'Configurações da NFS-e Nacional' },
+			schema: {},
+			fields: camposConfiguracoes,
+		});
+
+		const itens = new ctx.services.ItemsService(CONFIGURACOES, { schema: await ctx.getSchema(), accountability: null });
+		await itens.upsertSingleton({ relatar_divergencias: false, instalacao: randomUUID() });
+		ctx.logger.info(`[nfse-nacional] coleção ${CONFIGURACOES} criada`);
+	}
+
+	if (!schema.collections[DIVERGENCIAS]) {
+		await colecoes.createOne({
+			collection: DIVERGENCIAS,
+			meta: { icon: 'change_circle', note: 'Mudanças do ADN detectadas nesta instalação', display_template: '{{tipo}} · {{detalhe}}' },
+			schema: {},
+			fields: camposDivergencias,
+		});
+
+		ctx.logger.info(`[nfse-nacional] coleção ${DIVERGENCIAS} criada`);
 	}
 }

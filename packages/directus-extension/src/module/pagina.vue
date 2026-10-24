@@ -24,6 +24,23 @@ const arquivos = reactive<Record<number, File | undefined>>({});
 const senhas = reactive<Record<number, string>>({});
 const mensagens = reactive<Record<number, { tipo: string; texto: string } | undefined>>({});
 const enviando = ref<number | null>(null);
+const situacao = ref<Situacao | null>(null);
+const salvandoConsentimento = ref(false);
+
+interface Divergencia {
+	assinatura: string;
+	tipo: string;
+	detalhe: string;
+	ocorrencias: number;
+	issue: { numero: number; url: string; estado: 'aberta' | 'fechada'; corrigidaNaVersao: string | null } | null;
+}
+
+interface Situacao {
+	versaoInstalada: string;
+	ultimaVersao: string | null;
+	relatarDivergencias: boolean;
+	divergencias: Divergencia[];
+}
 const sincronizando = ref<number | null>(null);
 
 onMounted(carregar);
@@ -34,6 +51,7 @@ async function carregar() {
 	try {
 		const { data } = await api.get('/items/nfse_empresas', { params: { limit: -1, sort: 'nome', fields: ['*'] } });
 		empresas.value = data.data;
+		situacao.value = (await api.get('/nfse-nacional/situacao')).data;
 		erroGeral.value = null;
 	}
 	catch (erro) {
@@ -89,6 +107,34 @@ async function sincronizar(id: number) {
 	}
 }
 
+/** Consentimento para relatar mudanças do ADN (coleção singleton nfse_configuracoes). */
+async function alterarConsentimento(valor: boolean) {
+	salvandoConsentimento.value = true;
+
+	try {
+		await api.patch('/items/nfse_configuracoes', { relatar_divergencias: valor });
+		if (situacao.value) situacao.value.relatarDivergencias = valor;
+	}
+	catch (erro) {
+		erroGeral.value = textoErro(erro);
+	}
+	finally {
+		salvandoConsentimento.value = false;
+	}
+}
+
+/** Compara versões x.y.z. */
+function maisNova(a: string | null, b: string): boolean {
+	if (!a) return false;
+	const [x, y] = [a, b].map((v) => v.split('.').map(Number));
+
+	for (let i = 0; i < 3; i++) {
+		if ((x?.[i] ?? 0) !== (y?.[i] ?? 0)) return (x?.[i] ?? 0) > (y?.[i] ?? 0);
+	}
+
+	return false;
+}
+
 function paraBase64(arquivo: File): Promise<string> {
 	return new Promise((resolver, rejeitar) => {
 		const leitor = new FileReader();
@@ -122,7 +168,10 @@ function textoErro(erro: unknown): string {
 			<v-notice v-if="erroGeral" type="danger">
 				{{ erroGeral }}
 			</v-notice>
-			<v-notice v-else-if="!carregando && empresas.length === 0" type="info">
+			<v-notice v-if="situacao && maisNova(situacao.ultimaVersao, situacao.versaoInstalada)" type="warning">
+				Versão {{ situacao.ultimaVersao }} disponível (instalada: {{ situacao.versaoInstalada }}). Atualize a extensão: novas versões acompanham as mudanças do ADN.
+			</v-notice>
+			<v-notice v-if="!carregando && empresas.length === 0" type="info">
 				Cadastre as empresas na coleção "nfse_empresas" (CNPJ só com dígitos) e volte aqui para enviar o certificado.
 			</v-notice>
 
@@ -173,6 +222,48 @@ function textoErro(erro: unknown): string {
 					{{ mensagens[empresa.id].texto }}
 				</v-notice>
 			</div>
+
+			<section v-if="situacao" class="bloco">
+				<h2>Mudanças do ADN</h2>
+				<v-checkbox
+					:model-value="situacao.relatarDivergencias"
+					:disabled="salvandoConsentimento"
+					label="Relatar automaticamente ao projeto as mudanças do ADN detectadas"
+					@update:model-value="alterarConsentimento"
+				/>
+				<p class="nota">
+					Quando o ADN muda (versão do leiaute, campos, rotas), a sincronização continua e a mudança aparece aqui.
+					Com esta opção, a extensão envia ao projeto só o tipo da mudança e as versões, para abrir (ou somar a) uma issue no GitHub,
+					e avisa aqui quando ela for corrigida. Nunca envia CNPJ, XML, valores ou nomes.
+				</p>
+
+				<table v-if="situacao.divergencias.length > 0">
+					<thead>
+						<tr><th>Mudança</th><th>Ocorrências</th><th>Issue</th></tr>
+					</thead>
+					<tbody>
+						<tr v-for="d in situacao.divergencias" :key="d.assinatura">
+							<td><code>{{ d.tipo }}</code> {{ d.detalhe }}</td>
+							<td>{{ d.ocorrencias }}</td>
+							<td>
+								<a v-if="d.issue" :href="d.issue.url" target="_blank" rel="noopener">#{{ d.issue.numero }}</a>
+								<template v-if="d.issue?.estado === 'fechada'">
+									· corrigida{{ d.issue.corrigidaNaVersao ? ` na versão ${d.issue.corrigidaNaVersao}` : '' }}
+								</template>
+								<template v-else-if="d.issue">
+									· aberta
+								</template>
+								<template v-else>
+									não relatada
+								</template>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<p v-else class="nota">
+					Nenhuma mudança detectada.
+				</p>
+			</section>
 		</div>
 	</private-view>
 </template>
@@ -246,6 +337,29 @@ dt {
 }
 .arquivo input {
 	display: none;
+}
+.bloco {
+	margin-top: 8px;
+	padding: 20px;
+	border: var(--theme--border-width) solid var(--theme--border-color);
+	border-radius: var(--theme--border-radius);
+}
+.nota {
+	color: var(--theme--foreground-subdued);
+	margin: 8px 0 16px;
+}
+table {
+	width: 100%;
+	border-collapse: collapse;
+}
+th,
+td {
+	text-align: left;
+	padding: 6px 8px;
+	border-bottom: var(--theme--border-width) solid var(--theme--border-color-subdued);
+}
+.situacao.adn_alterado {
+	color: var(--theme--warning);
 }
 .acoes .v-input {
 	max-width: 260px;

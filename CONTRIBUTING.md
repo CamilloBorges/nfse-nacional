@@ -40,6 +40,16 @@ git tag vX.Y.Z && git push origin vX.Y.Z
 A tag dispara o workflow **Publicar**: confere a versão, roda os testes, publica os dois pacotes no npm (com provenance)
 e cria o Release no GitHub com as notas do CHANGELOG.
 
+## Mudanças do ADN (para quem mantém)
+
+- Issues com rótulo **`adn-mudanca`** chegam pelo relé, vindas das instalações; as com **`adn-documentacao`** vêm do
+  workflow **Vigiar ADN**.
+- Para corrigir: ajuste o `CONTRATO_ADN` e o leitor (`packages/core`), com teste. Se a documentação mudou, rode
+  `node scripts/vigiar-adn.mjs --atualizar` no mesmo PR.
+- Feche a issue com a **milestone da versão** que traz a correção (ex.: `v0.3.1`): as instalações que relataram mostram
+  "corrigida na versão 0.3.1" e o relé reabre a issue se o problema voltar nessa versão ou depois.
+- O relé (`packages/rele`) é publicado à parte: `pnpm --filter nfse-nacional-rele publicar`.
+
 ## Regras de ouro
 
 - Nunca inclua certificados, senhas, chaves ou XML de notas reais. Os testes geram tudo fictício.
