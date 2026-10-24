@@ -1,7 +1,7 @@
 {
 	"name": "nfse-nacional-core",
 	"type": "module",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"description": "Cliente do ADN (NFS-e Nacional): certificado A1, distribuição por NSU, leitura do XML e criptografia do certificado em repouso, extensível por plugins",
 	"author": "Camillo Cardoso Borges",
 	"license": "MIT",

@@ -1,6 +1,6 @@
 {
 	"name": "nfse-nacional-monorepo",
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"private": true,
 	"packageManager": "pnpm@10.27.0",
 	"description": "Busca automática das NFS-e do Ambiente de Dados Nacional (ADN) para o Directus",

@@ -8,6 +8,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 
 ## [Não lançado]
 
+## [0.3.0] - 2026-10-24
+
 ### Adicionado
 
 - **Detecção de mudanças do ADN:** `CONTRATO_ADN` (versões de leiaute, status, tipos de documento, campos obrigatórios e
@@ -23,6 +25,13 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - Workflow semanal **Vigiar ADN**, que compara a documentação oficial com `docs/adn-referencia.json` e abre uma issue
   quando ela muda.
 - Badges de confiabilidade e segurança do SonarQube (com token de badge).
+
+### Corrigido
+
+- **Relé:** relatos simultâneos da mesma mudança criavam issues duplicadas (a listagem do GitHub demora a mostrar uma
+  issue nova). Agora um Durable Object por assinatura processa um relato de cada vez e lembra o número da issue.
+- Apontamentos do SonarQube: ordenação com `localeCompare`, base64url sem regex com retrocesso e promise em segundo
+  plano explícita.
 
 ## [0.2.0] - 2026-10-24
 
@@ -53,6 +62,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - `directus-extension-nfse-nacional`: coleções, sincronização agendada, rotas de envio de certificado e de sincronização
   (só admin) e tela de certificados.
 
-[Não lançado]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.2.0...HEAD
+[Não lançado]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/CamilloBorges/nfse-nacional/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/CamilloBorges/nfse-nacional/releases/tag/v0.1.0
