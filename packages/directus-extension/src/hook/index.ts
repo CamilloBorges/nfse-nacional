@@ -22,7 +22,10 @@ export default defineHook(({ init, schedule }, contexto) => {
 	if (agenda !== 'false') {
 		schedule(agenda, async () => {
 			try {
-				await (await obterAplicacao(ctx)).sincronizarTodas();
+				const app = await obterAplicacao(ctx);
+				await app.sincronizarTodas();
+				// Issues relatadas por esta instalação: avisa quando forem corrigidas.
+				await app.acompanharIssues();
 			}
 			catch (erro) {
 				ctx.logger.error(`[nfse-nacional] ${erro instanceof Error ? erro.message : erro}`);

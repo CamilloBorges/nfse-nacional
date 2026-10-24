@@ -1,0 +1,19 @@
+# Relé oficial do nfse-nacional (Cloudflare Worker). Publicação: pnpm --filter nfse-nacional-rele publicar
+# Segredos (uma vez, depois de criar o GitHub App com scripts/criar-github-app.mjs):
+#   npx wrangler secret put GITHUB_APP_ID
+#   npx wrangler secret put GITHUB_APP_CHAVE        (chave do App em PKCS#8)
+#   npx wrangler secret put GITHUB_INSTALACAO_ID
+name = "nfse-nacional-rele"
+main = "dist/worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [ { pattern = "nfse-rele.bomgado.net", custom_domain = true } ]
+
+[vars]
+REPOSITORIO = "CamilloBorges/nfse-nacional"
+
+# 10 relatos por minuto por instalação e por IP.
+[[ratelimits]]
+name = "LIMITE"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }

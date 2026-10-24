@@ -46,6 +46,13 @@ export default defineEndpoint({
 			}),
 		);
 
+		/** Versão instalada × última publicada, consentimento e mudanças do ADN detectadas. */
+		router.get(
+			'/situacao',
+			somenteAdmin,
+			tratar(async () => (await obterAplicacao(ctx)).situacao()),
+		);
+
 		router.post(
 			'/empresas/:id/sincronizar',
 			somenteAdmin,

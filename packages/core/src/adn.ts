@@ -97,7 +97,12 @@ export class ClienteAdn {
 
 		if (status === 200) return { ...(json as RespostaDfe), LoteDFe: json?.LoteDFe ?? [] };
 
-		// Sem documentos novos o ADN responde 404 (com ou sem corpo).
+		// Sem documentos novos o ADN responde 404, vazio ou com StatusProcessamento. Um 404 com outro
+		// corpo (ex.: só "Erros") indica rota que não existe mais: vira erro, não "nenhum documento".
+		if (status === 404 && json && typeof json === 'object' && !json.StatusProcessamento) {
+			throw new ErroAdn(`ADN respondeu 404 para ${caminho.split('?')[0]}: a rota pode ter mudado${resumoErros(json)}`, status, corpo);
+		}
+
 		if (status === 404) {
 			return {
 				...json,

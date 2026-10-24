@@ -1,0 +1,22 @@
+{
+	"name": "nfse-nacional-rele",
+	"type": "module",
+	"version": "0.2.0",
+	"private": true,
+	"description": "Relé (Cloudflare Worker) que recebe os relatos de mudanças do ADN e abre ou atualiza issues no GitHub",
+	"license": "MIT",
+	"scripts": {
+		"build": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=dist/worker.js",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:coverage": "vitest run --coverage",
+		"publicar": "pnpm build && npx wrangler deploy"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^5.20261024.1",
+		"@vitest/coverage-v8": "^5.0.5",
+		"esbuild": "^0.28.2",
+		"typescript": "^5.9.3",
+		"vitest": "^5.0.5"
+	}
+}
