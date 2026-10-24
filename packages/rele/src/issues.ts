@@ -11,6 +11,12 @@ export interface InfoIssue {
 	corrigidaNaVersao: string | null;
 }
 
+/** Número da issue de uma assinatura, guardado com consistência forte. */
+export interface MemoriaDaIssue {
+	obter: () => Promise<number | undefined>;
+	guardar: (numero: number) => Promise<void>;
+}
+
 interface Issue {
 	number: number;
 	html_url: string;
@@ -25,8 +31,23 @@ interface Issue {
  * vez, então somar no corpo dá o número de instalações afetadas. Fechada e corrigida numa versão que a
  * instalação já tem: é regressão, a issue é reaberta.
  */
-export async function encontrarOuCriarIssue(github: ChamarGitHub, repositorio: string, relato: Relato): Promise<InfoIssue> {
-	const existente = await procurar(github, repositorio, relato.assinatura);
+export async function encontrarOuCriarIssue(github: ChamarGitHub, repositorio: string, relato: Relato, memoria?: MemoriaDaIssue): Promise<InfoIssue> {
+	// A memória (Durable Object) tem leitura imediata; a listagem do GitHub demora a refletir uma issue nova.
+	let lembrada = await memoria?.obter();
+	let existente: Issue | undefined;
+
+	if (lembrada) {
+		try {
+			existente = await github('GET', `/repos/${repositorio}/issues/${lembrada}`);
+		}
+		catch (erro) {
+			// Issue apagada ou transferida: esquece e procura de novo.
+			if (!/HTTP (?:404|410)$/.test(erro instanceof Error ? erro.message : '')) throw erro;
+			lembrada = undefined;
+		}
+	}
+
+	existente ??= await procurar(github, repositorio, relato.assinatura);
 
 	if (!existente) {
 		const criada: Issue = await github('POST', `/repos/${repositorio}/issues`, {
@@ -35,8 +56,11 @@ export async function encontrarOuCriarIssue(github: ChamarGitHub, repositorio: s
 			labels: [ROTULO],
 		});
 
+		await memoria?.guardar(criada.number);
 		return info(criada);
 	}
+
+	if (!lembrada) await memoria?.guardar(existente.number);
 
 	const corrigidaNaVersao = versaoDaMilestone(existente);
 
