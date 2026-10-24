@@ -69,7 +69,7 @@ describe('relé', () => {
 	});
 
 	it('cria a issue com rótulo, título pela assinatura e sem dados fiscais', async () => {
-		const r = await tratar(post(relato), env, gh.chamar);
+		const r = await tratar(post(relato), env, { github: gh.chamar });
 		expect(await r.json()).toEqual({ numero: 1, url: 'https://github.com/dono/repo/issues/1', estado: 'aberta', corrigidaNaVersao: null });
 		expect(gh.issues[0].title).toBe(`ADN: leiaute_desconhecido NFSe@versao=1.02 [${base.assinatura}]`);
 		expect(gh.issues[0].labels).toEqual(['adn-mudanca']);
@@ -77,35 +77,63 @@ describe('relé', () => {
 	});
 
 	it('não duplica: soma instalações na issue aberta', async () => {
-		await tratar(post(relato), env, gh.chamar);
-		const r = await tratar(post({ ...relato, instalacao: '1b6f2c1e-8d4a-4f7e-9c3b-1a2b3c4d5e6f' }), env, gh.chamar);
+		await tratar(post(relato), env, { github: gh.chamar });
+		const r = await tratar(post({ ...relato, instalacao: '1b6f2c1e-8d4a-4f7e-9c3b-1a2b3c4d5e6f' }), env, { github: gh.chamar });
 		expect(((await r.json()) as { numero: number }).numero).toBe(1);
 		expect(gh.issues).toHaveLength(1);
 		expect(gh.issues[0].body).toContain('Instalações afetadas: 2');
 	});
 
 	it('fechada com correção numa versão mais nova: devolve a versão para a instalação atualizar', async () => {
-		await tratar(post(relato), env, gh.chamar);
+		await tratar(post(relato), env, { github: gh.chamar });
 		Object.assign(gh.issues[0], { state: 'closed', milestone: { title: 'v0.3.1' } });
-		const r = await tratar(post({ ...relato, instalacao: '2b6f2c1e-8d4a-4f7e-9c3b-1a2b3c4d5e6f' }), env, gh.chamar);
+		const r = await tratar(post({ ...relato, instalacao: '2b6f2c1e-8d4a-4f7e-9c3b-1a2b3c4d5e6f' }), env, { github: gh.chamar });
 		expect(await r.json()).toMatchObject({ estado: 'fechada', corrigidaNaVersao: '0.3.1' });
 		expect(gh.issues[0].state).toBe('closed');
 	});
 
 	it('regressão (ocorre na versão que deveria estar corrigida): reabre', async () => {
-		await tratar(post(relato), env, gh.chamar);
+		await tratar(post(relato), env, { github: gh.chamar });
 		Object.assign(gh.issues[0], { state: 'closed', milestone: { title: 'v0.3.0' } });
-		const r = await tratar(post(relato), env, gh.chamar);
+		const r = await tratar(post(relato), env, { github: gh.chamar });
 		expect(await r.json()).toMatchObject({ estado: 'aberta' });
 		expect(gh.issues[0].state).toBe('open');
 		expect(gh.comentarios[0]).toContain('Reaberta automaticamente');
 	});
 
+	it('com a listagem do GitHub atrasada, a memória da assinatura evita a duplicata', async () => {
+		let guardado: number | undefined;
+		const memoria = { obter: async () => guardado, guardar: async (n: number) => void (guardado = n) };
+		const atrasado: ChamarGitHub = async (metodo, caminho, corpo) => (metodo === 'GET' && caminho.includes('?labels=') ? [] : gh.chamar(metodo, caminho, corpo));
+		// O fake atende GET /issues/N pelo filtro de número.
+		const comLeitura: ChamarGitHub = async (metodo, caminho, corpo) =>
+			metodo === 'GET' && /\/issues\/\d+$/.test(caminho) ? gh.issues.find((i) => caminho.endsWith(`/${i.number}`)) : atrasado(metodo, caminho, corpo);
+
+		await tratar(post(relato), env, { github: comLeitura, memoria });
+		await tratar(post({ ...relato, instalacao: '1b6f2c1e-8d4a-4f7e-9c3b-1a2b3c4d5e6f' }), env, { github: comLeitura, memoria });
+		expect(gh.issues).toHaveLength(1);
+		expect(gh.issues[0].body).toContain('Instalações afetadas: 2');
+	});
+
+	it('se a issue lembrada foi apagada, esquece e cria outra', async () => {
+		let guardado: number | undefined = 42;
+		const memoria = { obter: async () => guardado, guardar: async (n: number) => void (guardado = n) };
+
+		const apagada: ChamarGitHub = async (metodo, caminho, corpo) => {
+			if (metodo === 'GET' && caminho.endsWith('/issues/42')) throw new Error('GitHub GET /repos/dono/repo/issues/42: HTTP 404');
+			return gh.chamar(metodo, caminho, corpo);
+		};
+
+		const r = await tratar(post(relato), env, { github: apagada, memoria });
+		expect(((await r.json()) as { numero: number }).numero).toBe(1);
+		expect(guardado).toBe(1);
+	});
+
 	it('respeita o limite de envios e as rotas', async () => {
 		const limite = { limit: vi.fn(async () => ({ success: false })) };
-		expect((await tratar(post(relato), { ...env, LIMITE: limite }, gh.chamar)).status).toBe(429);
-		expect((await tratar(post({ x: 1 }), env, gh.chamar)).status).toBe(400);
-		expect((await tratar(new Request('https://rele/outra'), env, gh.chamar)).status).toBe(404);
+		expect((await tratar(post(relato), { ...env, LIMITE: limite }, { github: gh.chamar })).status).toBe(429);
+		expect((await tratar(post({ x: 1 }), env, { github: gh.chamar })).status).toBe(400);
+		expect((await tratar(new Request('https://rele/outra'), env, { github: gh.chamar })).status).toBe(404);
 		expect((await tratar(post(relato), env)).status).toBe(503);
 	});
 });
