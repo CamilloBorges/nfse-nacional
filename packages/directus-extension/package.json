@@ -61,9 +61,9 @@
 		"nfse-nacional-core": "workspace:*"
 	},
 	"devDependencies": {
-		"@directus/extensions-sdk": "18.0.6",
-		"@types/node": "^22.0.0",
-		"typescript": "^5.9.3",
+		"@directus/extensions-sdk": "18.1.0",
+		"@types/node": "^26.6.5",
+		"typescript": "^7.0.2",
 		"vue": "^3.5.0"
 	}
 }
