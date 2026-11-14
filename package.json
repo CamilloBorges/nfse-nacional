@@ -26,6 +26,6 @@
 	},
 	"devDependencies": {
 		"@directus/eslint-config": "^0.2.0",
-		"eslint": "^10.0.0"
+		"eslint": "^10.14.0"
 	}
 }
